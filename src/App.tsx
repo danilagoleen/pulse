@@ -368,29 +368,20 @@ function App() {
             </div>
           </div>
           
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={() => setIsLeftHandNotes(!isLeftHandNotes)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                isLeftHandNotes 
-                  ? "bg-cyan-700 text-white" 
-                  : "bg-zinc-700 text-zinc-300"
-              }`}
-            >
-              <ArrowLeftRight className="w-4 h-4" />
-              {isLeftHandNotes ? "Left = Notes" : "Right = Notes"}
-            </button>
-            
-            <div className="flex items-center gap-2 text-xs text-zinc-500">
-              <Hand className="w-3 h-3 text-green-400" />
-              <span>{isLeftHandNotes ? "Notes (X)" : "Filter (X)"}</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-zinc-500">
-              <Hand className="w-3 h-3 text-red-400" />
-              <span>{isLeftHandNotes ? "Filter (X)" : "Notes (X)"}</span>
-            </div>
-          </div>
-          
+          <button
+            onClick={() => setIsLeftHandNotes(!isLeftHandNotes)}
+            className={`flex flex-col items-center gap-1 px-4 py-3 rounded-lg transition-colors ${
+              isLeftHandNotes 
+                ? "bg-cyan-700 text-white" 
+                : "bg-zinc-700 text-zinc-300"
+            }`}
+          >
+            <ArrowLeftRight className="w-5 h-5" />
+            <span className="text-xs">
+              {isLeftHandNotes ? "L=Notes" : "R=Notes"}
+            </span>
+          </button>
+
           <button
             onClick={handleTestSound}
             disabled={!isReady}
@@ -493,10 +484,8 @@ function App() {
           </div>
         </div>
 
-        <div className="mt-6 text-center text-zinc-600 text-xs">
-          <p>🎵 Notes Hand: X = pitch (left=low, right=high), Y = legato↔arpeggio (Korg Kaos style)</p>
-          <p>🎚️ Filter Hand: Y = filter cutoff (up=open, down=closed)</p>
-          <p>✋ Pinch to play note</p>
+        <div className="mt-4 text-center text-zinc-500 text-xs">
+          <p>🎵 Notes: X=pitch, Y=legato/arp | 🎚️ Filter: Y=cutoff | ✋ Pinch to play</p>
         </div>
       </main>
     </div>
