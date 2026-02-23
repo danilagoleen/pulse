@@ -44,23 +44,28 @@ function App() {
       const filterHand = isLeftHandNotes ? state.rightHand : state.leftHand;
       
       // Debug log - show more info
-      console.log(`[Gesture] Left: pinching=${state.leftHand?.isPinching}, x=${state.leftHand?.x.toFixed(2)} | Right: pinching=${state.rightHand?.isPinching}, x=${state.rightHand?.x.toFixed(2)}`);
-      console.log(`[Gesture] Mode: ${isLeftHandNotes ? 'Left=Notes' : 'Right=Notes'}, NotesHand isPinching: ${notesHand?.isPinching}, filterHand X: ${filterHand?.x.toFixed(2)}`);
+      console.log(`[Gesture] Left: pinching=${state.leftHand?.isPinching}, x=${state.leftHand?.x.toFixed(2)}, y=${state.leftHand?.y.toFixed(2)} | Right: pinching=${state.rightHand?.isPinching}, x=${state.rightHand?.x.toFixed(2)}, y=${state.rightHand?.y.toFixed(2)}`);
       
-      // Always update filter based on filter hand position
+      // Filter hand: Y axis controls filter cutoff
       if (filterHand) {
-        const filterX = filterHand.x;
-        setCurrentFilter(filterX);
-        synthRef.current.setFilterCutoff(filterX);
+        const filterY = filterHand.y;
+        setCurrentFilter(filterY);
+        synthRef.current.setFilterCutoff(filterY);
+        console.log(`[Gesture] Filter hand Y: ${filterY.toFixed(2)} → cutoff`);
       }
       
-      // Notes only when pinching
+      // Notes hand: X = pitch (left=low, right=high), Y = legato/arpeggio
       if (notesHand?.isPinching) {
         synthRef.current.start();
         
-        // Notes on X axis (like piano - left = low, right = high)
+        // X axis: pitch (like piano - left = low, right = high)
         const normalizedX = notesHand.x;
         const midiNote = quantizeToScale(normalizedX, selectedScale);
+        
+        // Y axis: 0 = arpeggio, 1 = legato (Korg Kaos style)
+        // We'll use this later with BPM detection
+        const normalizedY = notesHand.y;
+        console.log(`[Gesture] Pitch hand X: ${normalizedX.toFixed(2)} → MIDI ${midiNote}, Y: ${normalizedY.toFixed(2)} (arpeggio→legato)`);
         
         setCurrentNote(midiNote);
         synthRef.current.setFrequencyFromMidi(midiNote);
@@ -91,16 +96,16 @@ function App() {
   useEffect(() => {
     if (isSimulating && synthRef.current) {
       const noteX = isLeftHandNotes ? simX : 0.5;
-      const filterX = isLeftHandNotes ? 0.5 : simX;
+      const filterY = isLeftHandNotes ? simY : 0.5;
       
-      // Always update filter
-      synthRef.current.setFilterCutoff(filterX);
-      setCurrentFilter(filterX);
+      // Filter: Y axis
+      synthRef.current.setFilterCutoff(filterY);
+      setCurrentFilter(filterY);
       
       if (simPinch) {
         synthRef.current.start();
         
-        // Notes on X axis
+        // Pitch: X axis
         const midiNote = quantizeToScale(noteX, selectedScale);
         synthRef.current.setFrequencyFromMidi(midiNote);
         setCurrentNote(midiNote);
@@ -111,8 +116,8 @@ function App() {
       }
       
       setGestureState({
-        leftHand: { x: isLeftHandNotes ? simX : filterX, y: 0.5, z: 0, isPinching: false },
-        rightHand: { x: isLeftHandNotes ? filterX : simX, y: 0.5, z: 0, isPinching: simPinch },
+        leftHand: { x: isLeftHandNotes ? simX : 0.5, y: isLeftHandNotes ? simY : 0.5, z: 0, isPinching: false },
+        rightHand: { x: isLeftHandNotes ? 0.5 : simX, y: isLeftHandNotes ? 0.5 : simY, z: 0, isPinching: simPinch },
       });
     }
   }, [isSimulating, simY, simX, simPinch, selectedScale, isLeftHandNotes]);
@@ -296,19 +301,7 @@ function App() {
               <p className="text-xs text-cyan-400 mb-3">🎮 Simulation Controls</p>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-zinc-400">Pitch (Y): {simY.toFixed(2)}</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={simY}
-                    onChange={(e) => setSimY(parseFloat(e.target.value))}
-                    className="w-full accent-cyan-400"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-zinc-400">Filter (X): {simX.toFixed(2)}</label>
+                  <label className="text-xs text-zinc-400">Pitch (X): {simX.toFixed(2)}</label>
                   <input
                     type="range"
                     min="0"
@@ -316,6 +309,18 @@ function App() {
                     step="0.01"
                     value={simX}
                     onChange={(e) => setSimX(parseFloat(e.target.value))}
+                    className="w-full accent-cyan-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400">Filter (Y): {simY.toFixed(2)}</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={simY}
+                    onChange={(e) => setSimY(parseFloat(e.target.value))}
                     className="w-full accent-purple-400"
                   />
                 </div>
@@ -466,7 +471,7 @@ function App() {
               <p>Y: {gestureState.leftHand?.y.toFixed(2) ?? "—"}</p>
               <p>Pinch: {gestureState.leftHand?.isPinching ? "ON" : "OFF"}</p>
               {!isLeftHandNotes && <p>Filter: {(currentFilter * 100).toFixed(0)}%</p>}
-              <p>→ {isLeftHandNotes ? "Notes (X → pitch)" : "Filter (X → cutoff)"}</p>
+              <p>→ {isLeftHandNotes ? "Notes (X=pitch, Y=legato/arp)" : "Filter (Y=cutoff)"}</p>
             </div>
           </div>
 
@@ -483,15 +488,15 @@ function App() {
               <p>Y: {gestureState.rightHand?.y.toFixed(2) ?? "—"}</p>
               <p>Pinch: {gestureState.rightHand?.isPinching ? "ON" : "OFF"}</p>
               {isLeftHandNotes && <p>Filter: {(currentFilter * 100).toFixed(0)}%</p>}
-              <p>→ {isLeftHandNotes ? "Filter (X → cutoff)" : "Notes (X → pitch)"}</p>
+              <p>→ {isLeftHandNotes ? "Filter (Y=cutoff)" : "Notes (X=pitch, Y=legato/arp)"}</p>
             </div>
           </div>
         </div>
 
         <div className="mt-6 text-center text-zinc-600 text-xs">
-          <p>Move hand assigned to Notes → X axis controls pitch</p>
-          <p>Pinch to play note</p>
-          <p>Other hand → X axis controls filter cutoff</p>
+          <p>🎵 Notes Hand: X = pitch (left=low, right=high), Y = legato↔arpeggio (Korg Kaos style)</p>
+          <p>🎚️ Filter Hand: Y = filter cutoff (up=open, down=closed)</p>
+          <p>✋ Pinch to play note</p>
         </div>
       </main>
     </div>
