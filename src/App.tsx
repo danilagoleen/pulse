@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Header } from "./components/Header";
+import { CamelotModeWheel } from "./components/CamelotModeWheel";
 import { SynthEngine } from "./audio/SynthEngine";
 import { KeyDetector } from "./audio/KeyDetector";
 import { BPMDetector } from "./audio/BPMDetector";
 import { HandTracker, GestureState } from "./vision/HandTracker";
-import { quantizeToScale, CAMELOT_KEYS, SCALE_COLORS } from "./music/theory";
+import { quantizeToScale, CAMELOT_WHEEL, SCALE_COLORS } from "./music/theory";
 import { Volume2, Hand, Camera, Square, MousePointer2, ArrowLeftRight, Mic, MicOff, Activity } from "lucide-react";
 
 function App() {
@@ -428,30 +429,12 @@ function App() {
         </div>
 
         <div className="flex items-center gap-6 mt-6">
-          <div className="relative">
-            <img 
-              src="/camelotcircle-cuatripatipedo_attr1_subject.png" 
-              alt="Camelot Wheel"
-              className="w-48 h-48 rounded-full object-cover cursor-pointer border-4"
-              style={{ borderColor: SCALE_COLORS[selectedScale] || '#45B7D1' }}
-              onClick={() => {
-                const currentIndex = CAMELOT_KEYS.indexOf(selectedScale);
-                const nextIndex = (currentIndex + 1) % CAMELOT_KEYS.length;
-                setSelectedScale(CAMELOT_KEYS[nextIndex]);
-              }}
-            />
-            <div 
-              className="absolute inset-0 flex items-center justify-center rounded-full"
-              style={{ backgroundColor: `${SCALE_COLORS[selectedScale] || '#45B7D1'}22` }}
-            >
-              <span 
-                className="text-4xl font-bold"
-                style={{ color: SCALE_COLORS[selectedScale] || '#45B7D1' }}
-              >
-                {selectedScale}
-              </span>
-            </div>
-          </div>
+          <CamelotModeWheel
+            currentCamelot={selectedScale}
+            scaleNotes={CAMELOT_WHEEL[selectedScale]}
+            onCamelotChange={(key) => setSelectedScale(key)}
+            size={192}
+          />
           
           <button
             onClick={() => {
