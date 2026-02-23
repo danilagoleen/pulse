@@ -31,20 +31,21 @@ function App() {
   const synthRef = useRef<SynthEngine | null>(null);
   const trackerRef = useRef<HandTracker | null>(null);
   const keyDetectorRef = useRef<KeyDetector | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const simIntervalRef = useRef<number | null>(null);
+  const isLeftHandNotesRef = useRef(isLeftHandNotes);
 
   const handleGesture = useCallback((state: GestureState) => {
     setGestureState(state);
+    const isLeft = isLeftHandNotesRef.current;
 
     if (synthRef.current) {
-      const notesHand = isLeftHandNotes ? state.leftHand : state.rightHand;
-      const filterHand = isLeftHandNotes ? state.rightHand : state.leftHand;
+      const notesHand = isLeft ? state.leftHand : state.rightHand;
+      const filterHand = isLeft ? state.rightHand : state.leftHand;
       
-      // Debug log - show more info
-      console.log(`[Gesture] Left: pinching=${state.leftHand?.isPinching}, x=${state.leftHand?.x.toFixed(2)}, y=${state.leftHand?.y.toFixed(2)} | Right: pinching=${state.rightHand?.isPinching}, x=${state.rightHand?.x.toFixed(2)}, y=${state.rightHand?.y.toFixed(2)}`);
+      console.log(`[Gesture] isLeftHandNotes=${isLeft}, leftHand=${state.leftHand ? 'present' : 'null'}, rightHand=${state.rightHand ? 'present' : 'null'}`);
       
       // Filter hand: Y axis controls filter cutoff
       if (filterHand) {
@@ -78,8 +79,14 @@ function App() {
   }, [selectedScale, isLeftHandNotes]);
 
   useEffect(() => {
+    isLeftHandNotesRef.current = isLeftHandNotes;
+    trackerRef.current?.setHandMode(isLeftHandNotes);
+  }, [isLeftHandNotes]);
+
+  useEffect(() => {
     synthRef.current = new SynthEngine();
     trackerRef.current = new HandTracker();
+    trackerRef.current.setHandMode(isLeftHandNotes);
     keyDetectorRef.current = new KeyDetector();
     setIsReady(true);
 
@@ -369,7 +376,12 @@ function App() {
           </div>
           
           <button
-            onClick={() => setIsLeftHandNotes(!isLeftHandNotes)}
+            onClick={() => {
+              const newValue = !isLeftHandNotes;
+              console.log("[App] Hand swap clicked, was:", isLeftHandNotes, "now:", newValue);
+              setIsLeftHandNotes(newValue);
+              trackerRef.current?.setHandMode(newValue);
+            }}
             className={`flex flex-col items-center gap-1 px-4 py-3 rounded-lg transition-colors ${
               isLeftHandNotes 
                 ? "bg-cyan-700 text-white" 
@@ -451,7 +463,7 @@ function App() {
         <div className="mt-6 grid grid-cols-2 gap-6 w-[640px]">
           <div className="bg-zinc-900/50 rounded-lg p-4 border border-zinc-800">
             <div className="flex items-center gap-2 mb-2">
-              <Hand className="w-4 h-4 text-green-400" />
+              <Hand className={`w-4 h-4 ${isLeftHandNotes ? 'text-green-400' : 'text-red-400'}`} />
               <span className="text-sm font-medium">Left Hand</span>
               <span className="text-xs text-cyan-400">
                 ({isLeftHandNotes ? "Notes" : "Filter"})
@@ -468,7 +480,7 @@ function App() {
 
           <div className="bg-zinc-900/50 rounded-lg p-4 border border-zinc-800">
             <div className="flex items-center gap-2 mb-2">
-              <Hand className="w-4 h-4 text-red-400" />
+              <Hand className={`w-4 h-4 ${isLeftHandNotes ? 'text-red-400' : 'text-green-400'}`} />
               <span className="text-sm font-medium">Right Hand</span>
               <span className="text-xs text-cyan-400">
                 ({isLeftHandNotes ? "Filter" : "Notes"})

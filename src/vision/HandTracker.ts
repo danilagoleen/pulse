@@ -20,12 +20,18 @@ export class HandTracker {
   private onGesture: ((state: GestureState) => void) | null = null;
   private isRunning: boolean = false;
   private animationFrameId: number | null = null;
+  private isLeftHandNotes: boolean = true;
 
   private smoothingFactor = 0.3;
   private prevLeft: HandData | null = null;
   private prevRight: HandData | null = null;
 
   constructor() {}
+
+  public setHandMode(isLeftHandNotes: boolean): void {
+    this.isLeftHandNotes = isLeftHandNotes;
+    console.log("[HandTracker] Hand mode set:", isLeftHandNotes ? "Left=Notes" : "Right=Notes");
+  }
 
   public async initialize(
     videoEl: HTMLVideoElement,
@@ -132,12 +138,18 @@ export class HandTracker {
           rightHand = this.prevRight;
         }
 
+        const notesColor = "#00FF00";
+        const filterColor = "#FF0000";
+        const color = isLeft 
+          ? (this.isLeftHandNotes ? notesColor : filterColor)
+          : (this.isLeftHandNotes ? filterColor : notesColor);
+
         this.drawConnectors(this.canvasCtx, landmarks, HAND_CONNECTIONS, {
-          color: isLeft ? "#00FF00" : "#FF0000",
+          color: color,
           lineWidth: 2,
         });
         this.drawLandmarks(this.canvasCtx, landmarks, {
-          color: isLeft ? "#00FF00" : "#FF0000",
+          color: color,
           lineWidth: 1,
           radius: 3,
         });
