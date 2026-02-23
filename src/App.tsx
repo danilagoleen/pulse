@@ -2,19 +2,24 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Header } from "./components/Header";
 import { SynthEngine } from "./audio/SynthEngine";
 import { KeyDetector } from "./audio/KeyDetector";
+import { BPMDetector } from "./audio/BPMDetector";
 import { HandTracker, GestureState } from "./vision/HandTracker";
 import { quantizeToScale, CAMELOT_KEYS, SCALE_COLORS } from "./music/theory";
-import { Volume2, Hand, Camera, Square, MousePointer2, ArrowLeftRight, Mic, MicOff } from "lucide-react";
+import { Volume2, Hand, Camera, Square, MousePointer2, ArrowLeftRight, Mic, MicOff, Activity } from "lucide-react";
 
 function App() {
   const [isReady, setIsReady] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isBPMTracking, setIsBPMTracking] = useState(false);
   const [detectedKey, setDetectedKey] = useState<string | null>(null);
   const [detectedNote, setDetectedNote] = useState<string | null>(null);
   const [detectedNotes, setDetectedNotes] = useState<string[]>([]);
   const [detectionScore, setDetectionScore] = useState<number>(0);
+  const [currentBPM, setCurrentBPM] = useState<number>(0);
+  const [beatPhase, setBeatPhase] = useState<number>(0);
+  const [bpmConfidence, setBpmConfidence] = useState<number>(0);
   const [gestureState, setGestureState] = useState<GestureState>({
     leftHand: null,
     rightHand: null,
@@ -22,7 +27,10 @@ function App() {
   const [selectedScale, setSelectedScale] = useState('8B');
   const [currentNote, setCurrentNote] = useState<number | null>(null);
   const [currentFilter, setCurrentFilter] = useState<number>(0.5);
-  const [isLeftHandNotes, setIsLeftHandNotes] = useState(true); // true = left hand = notes (lefty mode)
+  const [isLeftHandNotes, setIsLeftHandNotes] = useState(true);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [beatSyncEnabled, setBeatSyncEnabled] = useState(true);
+  const [playMode, setPlayMode] = useState<'legato' | 'arpeggio' | 'normal'>('normal');
   
   const [simY, setSimY] = useState(0.5);
   const [simX, setSimX] = useState(0.5);
@@ -31,11 +39,17 @@ function App() {
   const synthRef = useRef<SynthEngine | null>(null);
   const trackerRef = useRef<HandTracker | null>(null);
   const keyDetectorRef = useRef<KeyDetector | null>(null);
+  const bpmDetectorRef = useRef<BPMDetector | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const simIntervalRef = useRef<number | null>(null);
   const isLeftHandNotesRef = useRef(isLeftHandNotes);
+  const beatPhaseRef = useRef(0);
+  const isBPMTrackingRef = useRef(false);
+  const pendingKeyRef = useRef<string | null>(null);
+  const beatSyncEnabledRef = useRef(true);
+  const playModeRef = useRef<'legato' | 'arpeggio' | 'normal'>('normal');
 
   const handleGesture = useCallback((state: GestureState) => {
     setGestureState(state);
@@ -57,20 +71,45 @@ function App() {
       
       // Notes hand: X = pitch (left=low, right=high), Y = legato/arpeggio
       if (notesHand?.isPinching) {
-        synthRef.current.start();
-        
-        // X axis: pitch (like piano - left = low, right = high)
         const normalizedX = notesHand.x;
+        const normalizedY = notesHand.y;
         const midiNote = quantizeToScale(normalizedX, selectedScale);
         
-        // Y axis: 0 = arpeggio, 1 = legato (Korg Kaos style)
-        // We'll use this later with BPM detection
-        const normalizedY = notesHand.y;
-        console.log(`[Gesture] Pitch hand X: ${normalizedX.toFixed(2)} → MIDI ${midiNote}, Y: ${normalizedY.toFixed(2)} (arpeggio→legato)`);
+        const isArpeggioMode = normalizedY < 0.4;
+        const isLegatoMode = normalizedY > 0.6;
+        const isMidRange = !isArpeggioMode && !isLegatoMode;
         
-        setCurrentNote(midiNote);
-        synthRef.current.setFrequencyFromMidi(midiNote);
-        synthRef.current.setVolume(0.5);
+        const newMode: 'legato' | 'arpeggio' | 'normal' = isLegatoMode ? 'legato' : isArpeggioMode ? 'arpeggio' : 'normal';
+        if (playModeRef.current !== newMode) {
+          playModeRef.current = newMode;
+          setPlayMode(newMode);
+        }
+        
+        let shouldPlay = false;
+        
+        if (isLegatoMode) {
+          shouldPlay = true;
+        } else if (isMidRange) {
+          shouldPlay = true;
+        } else if (isArpeggioMode && isBPMTrackingRef.current) {
+          const beatPhase = beatPhaseRef.current;
+          const eighthNote = 0.25;
+          
+          const onEighth = beatPhase < eighthNote || (beatPhase > 0.5 && beatPhase < 0.5 + eighthNote);
+          
+          shouldPlay = onEighth;
+        } else {
+          shouldPlay = true;
+        }
+        
+        console.log(`[Gesture] Pitch: X=${normalizedX.toFixed(2)}→M${midiNote}, Y=${normalizedY.toFixed(2)} mode=${isLegatoMode ? 'LEGATO' : isArpeggioMode ? 'ARP' : 'MID'} play=${shouldPlay}`);
+        
+        if (shouldPlay) {
+          synthRef.current.start();
+          setCurrentNote(midiNote);
+          synthRef.current.setFrequencyFromMidi(midiNote);
+          synthRef.current.setVolume(0.5);
+        }
       } else {
         synthRef.current.stop();
         setCurrentNote(null);
@@ -214,20 +253,59 @@ function App() {
     if (isListening) {
       keyDetectorRef.current?.stop();
       setIsListening(false);
+      setPendingKey(null);
     } else {
       setDetectedNote(null);
       setDetectedKey(null);
       setDetectedNotes([]);
       setDetectionScore(0);
+      pendingKeyRef.current = null;
       await keyDetectorRef.current?.start((note: string, key: string, allNotes: string[], score: number) => {
         console.log("[KeyDetector] Detected:", note, "->", key, "notes:", allNotes, "score:", score);
         setDetectedNote(note);
         setDetectedKey(key);
         setDetectedNotes(allNotes);
         setDetectionScore(score);
-        setSelectedScale(key);
+        
+        if (beatSyncEnabledRef.current && isBPMTrackingRef.current) {
+          pendingKeyRef.current = key;
+          setPendingKey(key);
+          console.log("[KeyDetector] Key change queued for downbeat:", key);
+        } else {
+          setSelectedScale(key);
+        }
       });
       setIsListening(true);
+    }
+  };
+
+  const toggleBPM = async () => {
+    if (isBPMTracking) {
+      bpmDetectorRef.current?.stop();
+      setIsBPMTracking(false);
+      setCurrentBPM(0);
+      setBeatPhase(0);
+      setBpmConfidence(0);
+      isBPMTrackingRef.current = false;
+    } else {
+      bpmDetectorRef.current = new BPMDetector();
+      isBPMTrackingRef.current = true;
+      beatPhaseRef.current = 0;
+      await bpmDetectorRef.current.start((bpm, beat, confidence) => {
+        beatPhaseRef.current = beat;
+        setCurrentBPM(bpm);
+        setBeatPhase(beat);
+        setBpmConfidence(confidence);
+        
+        if (beat < 0.1 && pendingKeyRef.current) {
+          const key = pendingKeyRef.current;
+          console.log("[BPM] On downbeat - switching to:", key);
+          setSelectedScale(key);
+          setPendingKey(null);
+          pendingKeyRef.current = null;
+        }
+      });
+      setIsBPMTracking(true);
     }
   };
 
@@ -416,6 +494,54 @@ function App() {
             {isListening ? "Listening..." : "Auto Key"}
           </button>
 
+          <button
+            onClick={toggleBPM}
+            disabled={!isReady}
+            className={`flex items-center gap-3 px-6 py-3 rounded-lg transition-colors disabled:opacity-50 ${
+              isBPMTracking 
+                ? "bg-purple-700 hover:bg-purple-600 border border-purple-600" 
+                : "bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"
+            }`}
+          >
+            <Activity className="w-5 h-5" />
+            {isBPMTracking ? `${currentBPM} BPM` : "BPM Detect"}
+          </button>
+
+          {isBPMTracking && currentBPM > 0 && (
+            <div className="bg-purple-900/50 border-2 border-purple-500 rounded-xl px-4 py-2">
+              <div className="text-purple-400 font-bold text-lg text-center">
+                {currentBPM} BPM
+              </div>
+              <div className="text-purple-300 text-xs text-center">
+                {(bpmConfidence * 100).toFixed(0)}% confidence
+              </div>
+              <div className="mt-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-purple-500 transition-all duration-50"
+                  style={{ width: `${(1 - beatPhase) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {isListening && isBPMTracking && (
+            <button
+              onClick={() => {
+                beatSyncEnabledRef.current = !beatSyncEnabledRef.current;
+                setBeatSyncEnabled(beatSyncEnabledRef.current);
+              }}
+              className={`text-xs px-2 py-1 rounded ${beatSyncEnabled ? 'bg-purple-600' : 'bg-zinc-700'}`}
+            >
+              {beatSyncEnabled ? 'Beat Sync: ON' : 'Beat Sync: OFF'}
+            </button>
+          )}
+
+          {pendingKey && (
+            <div className="bg-yellow-600/50 border border-yellow-500 rounded-lg px-3 py-1 text-xs">
+              → {pendingKey} on beat
+            </div>
+          )}
+
           {isListening && !detectedKey && (
             <div className="bg-yellow-900/30 border-2 border-yellow-600 rounded-xl px-6 py-3 min-w-[200px]">
               <div className="text-yellow-400 font-bold text-lg text-center animate-pulse">
@@ -456,6 +582,14 @@ function App() {
               >
                 Note: {currentNote}
               </span>
+              {playMode !== 'normal' && (
+                <span 
+                  className="ml-2 text-xs font-bold"
+                  style={{ color: playMode === 'legato' ? '#00FF00' : '#FF6600' }}
+                >
+                  {playMode === 'legato' ? 'LEGATO' : 'ARP'}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -497,7 +631,7 @@ function App() {
         </div>
 
         <div className="mt-4 text-center text-zinc-500 text-xs">
-          <p>🎵 Notes: X=pitch, Y=legato/arp | 🎚️ Filter: Y=cutoff | ✋ Pinch to play</p>
+          <p>🎵 Notes: X=pitch, Y↓=arpeggio, Y↑=legato | 🎚️ Filter: Y=cutoff | ✋ Pinch to play</p>
         </div>
       </main>
     </div>
