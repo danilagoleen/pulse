@@ -1,4 +1,5 @@
 import { getKeyFromChromagram, NOTE_NAMES } from '../music/theory';
+import { CircularAudioBuffer } from './CircularAudioBuffer';
 
 export class KeyDetector {
   private audioContext: AudioContext | null = null;
@@ -6,14 +7,16 @@ export class KeyDetector {
   private microphone: MediaStreamAudioSourceNode | null = null;
   private stream: MediaStream | null = null;
   private isRunning: boolean = false;
+  private buffer: CircularAudioBuffer | null = null;
   private chromagram: number[] = new Array(12).fill(0);
   private stableKey: string = '8B';
   private frameCount: number = 0;
   private readonly STABLE_FRAMES = 2;
   private readonly MIN_FREQ = 60;
   private readonly MAX_FREQ = 2000;
-  private readonly RMS_THRESHOLD = 0.002;
+  private readonly RMS_THRESHOLD = 0.01;
   private readonly CHROMA_SMOOTHING = 0.9;
+  private readonly BUFFER_SECONDS = 10;
 
   public async start(onKeyDetected: (note: string, key: string, allNotes: string[], score: number) => void): Promise<void> {
     if (this.isRunning) return;
@@ -38,11 +41,13 @@ export class KeyDetector {
       this.microphone = this.audioContext.createMediaStreamSource(this.stream);
       this.microphone.connect(this.analyser);
       
+      this.buffer = new CircularAudioBuffer(this.BUFFER_SECONDS, this.audioContext.sampleRate);
+      
       this.isRunning = true;
       this.stableKey = '8B';
       this.frameCount = 0;
       this.chromagram = new Array(12).fill(0);
-      console.log("[KeyDetector] Starting detect loop...");
+      console.log(`[KeyDetector] Starting detect loop... (buffer: ${this.BUFFER_SECONDS}s)`);
       this.detectLoop(onKeyDetected);
     } catch (error) {
       console.error("[KeyDetector] Error:", error);
@@ -51,6 +56,10 @@ export class KeyDetector {
 
   public stop(): void {
     this.isRunning = false;
+    if (this.buffer) {
+      this.buffer.clear();
+      this.buffer = null;
+    }
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
       this.stream = null;
@@ -63,13 +72,15 @@ export class KeyDetector {
   }
 
   private detectLoop(onKeyDetected: (note: string, key: string, allNotes: string[], score: number) => void): void {
-    if (!this.isRunning || !this.analyser) return;
+    if (!this.isRunning || !this.analyser || !this.buffer) return;
 
     const bufferLength = this.analyser.frequencyBinCount;
-    const buffer = new Float32Array(bufferLength);
-    this.analyser.getFloatTimeDomainData(buffer);
+    const timeData = new Float32Array(bufferLength);
+    this.analyser.getFloatTimeDomainData(timeData);
+    
+    this.buffer.pushArray(timeData);
 
-    const rms = this.calculateRMS(buffer);
+    const rms = this.calculateRMS(timeData);
     
     if (rms > this.RMS_THRESHOLD) {
       this.updateChromagram();

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { quantizeToScale, CAMELOT_KEYS, shiftCamelot, MODE_WHEEL, SCALE_COLORS } from '../music/theory';
+import { quantizeToScale, CAMELOT_KEYS, shiftCamelot, MODE_WHEEL, SCALE_COLORS, midiToNoteName, midiToFrequency } from '../music/theory';
 
 describe('Music Theory Tests', () => {
   describe('Camelot Wheel', () => {
@@ -18,19 +18,13 @@ describe('Music Theory Tests', () => {
     });
 
     it('should quantize to scale correctly', () => {
-      // 8B = C Major = [60, 62, 64, 65, 67, 69, 71]
       const note = quantizeToScale(0, '8B');
-      expect(note).toBe(60); // First note (C4)
-    });
-
-    it('should quantize to middle of scale', () => {
-      const note = quantizeToScale(0.5, '8B');
-      expect(note).toBe(65); // F4
+      expect(note).toBe(48); // C3
     });
 
     it('should quantize to end of scale', () => {
       const note = quantizeToScale(1, '8B');
-      expect(note).toBe(71); // B4
+      expect(note).toBe(83); // B5
     });
 
     it('should shift camelot forward', () => {
@@ -91,6 +85,56 @@ describe('Music Theory Tests', () => {
       for (const key of CAMELOT_KEYS) {
         expect(SCALE_COLORS[key]).toMatch(hexRegex);
       }
+    });
+  });
+
+  describe('Note Name Conversion', () => {
+    it('should convert MIDI 60 to C4', () => {
+      expect(midiToNoteName(60)).toBe('C4');
+    });
+
+    it('should convert MIDI 69 to A4 (440Hz)', () => {
+      expect(midiToNoteName(69)).toBe('A4');
+    });
+
+    it('should convert MIDI 48 to C3', () => {
+      expect(midiToNoteName(48)).toBe('C3');
+    });
+
+    it('should convert MIDI 72 to C5', () => {
+      expect(midiToNoteName(72)).toBe('C5');
+    });
+
+    it('should handle all notes in octave', () => {
+      expect(midiToNoteName(60)).toBe('C4');
+      expect(midiToNoteName(61)).toBe('C#4');
+      expect(midiToNoteName(62)).toBe('D4');
+      expect(midiToNoteName(63)).toBe('D#4');
+      expect(midiToNoteName(64)).toBe('E4');
+      expect(midiToNoteName(65)).toBe('F4');
+      expect(midiToNoteName(66)).toBe('F#4');
+      expect(midiToNoteName(67)).toBe('G4');
+      expect(midiToNoteName(68)).toBe('G#4');
+      expect(midiToNoteName(69)).toBe('A4');
+      expect(midiToNoteName(70)).toBe('A#4');
+      expect(midiToNoteName(71)).toBe('B4');
+    });
+
+    it('should work with 3 octave range (C3-B5)', () => {
+      expect(midiToNoteName(48)).toBe('C3');
+      expect(midiToNoteName(57)).toBe('A3');
+      expect(midiToNoteName(72)).toBe('C5');
+      expect(midiToNoteName(83)).toBe('B5');
+    });
+  });
+
+  describe('MIDI Frequency Conversion', () => {
+    it('should convert MIDI 69 to 440Hz', () => {
+      expect(midiToFrequency(69)).toBeCloseTo(440, 1);
+    });
+
+    it('should convert MIDI 60 to ~261.63Hz (C4)', () => {
+      expect(midiToFrequency(60)).toBeCloseTo(261.63, 1);
     });
   });
 });

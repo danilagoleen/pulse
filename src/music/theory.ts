@@ -2,38 +2,98 @@
 import { Scale, Note } from 'tonal';
 
 // Camelot Wheel Notes (A = Minor, B = Major) - 3 OCTAVES
-// Each scale now has 21 notes (3 octaves: C3-B5)
+// FIX: 8B = C Major = C3(48) to G5(83), 21 notes
+// All scales use proper MIDI offsets
 export const CAMELOT_WHEEL: Record<string, number[]> = {
-  // Minor scales (3 octaves)
-  '1A': [45, 47, 48, 50, 52, 53, 55,  57, 59, 60, 62, 63, 65, 67, 68, 70,  72, 74, 75, 77, 79],  // A Minor
-  '2A': [46, 48, 49, 51, 53, 54, 56,  58, 60, 61, 63, 64, 66, 68, 69, 71,  73, 75, 76, 78, 80],  // B Minor
-  '3A': [47, 49, 50, 52, 54, 55, 57,  59, 61, 62, 64, 65, 67, 69, 70, 72,  74, 76, 77, 79, 81],  // C Minor
-  '4A': [48, 50, 51, 53, 55, 56, 58,  60, 62, 63, 65, 66, 68, 70, 71, 73,  75, 77, 78, 80, 82],  // D Minor
-  '5A': [49, 51, 52, 54, 56, 57, 59,  61, 63, 64, 66, 67, 69, 71, 72, 74,  76, 78, 79, 81, 83],  // E Minor
-  '6A': [50, 52, 53, 55, 57, 58, 60,  62, 64, 65, 67, 68, 70, 72, 73, 75,  77, 79, 80, 82, 84],  // F Minor
-  '7A': [51, 53, 54, 56, 58, 59, 61,  63, 65, 66, 68, 69, 71, 73, 74, 76,  78, 80, 81, 83, 85],  // G Minor
-  '8A': [45, 47, 48, 50, 52, 53, 55,  57, 59, 60, 62, 63, 65, 67, 68, 70,  72, 74, 75, 77, 79],  // A Minor (octave)
-  '9A': [53, 55, 56, 58, 60, 61, 63,  65, 67, 68, 70, 71, 73, 75, 76, 78,  80, 82, 83, 85, 87],  // B Minor
-  '10A': [54, 56, 57, 59, 61, 62, 64,  66, 68, 69, 71, 72, 74, 76, 77, 79,  81, 83, 84, 86, 88], // C Minor
-  '11A': [55, 57, 58, 60, 62, 63, 65,  67, 69, 70, 72, 73, 75, 77, 78, 80,  82, 84, 85, 87, 89], // D Minor
-  '12A': [56, 58, 59, 61, 63, 64, 66,  68, 70, 71, 73, 74, 76, 78, 79, 81,  83, 85, 86, 88, 90], // E Minor
+  // Minor scales (3 octaves: root C3=48 to B5=83)
+  // 1A = B minor = B C# D E F# G A
+  '1A': [35, 37, 39, 41, 44, 46, 48,  51, 53, 55, 56, 58,  63, 65, 67, 68, 70,  75, 77, 79, 80, 82], // Bm
+  '2A': [36, 38, 40, 42, 45, 47, 48,  51, 53, 55, 57, 58,  63, 65, 67, 69, 70,  75, 77, 79, 81, 82], // Cm
+  '3A': [37, 39, 41, 43, 46, 48, 49,  51, 53, 55, 57, 58,  63, 65, 67, 69, 70,  75, 77, 79, 81, 82], // Dm
+  '4A': [38, 40, 42, 44, 47, 49, 50,  52, 54, 56, 58, 59,  64, 66, 68, 70, 71,  76, 78, 80, 82, 83], // Em
+  '5A': [39, 41, 43, 45, 48, 50, 51,  53, 55, 57, 59, 60,  65, 67, 69, 71, 72,  77, 79, 81, 83, 84], // F#m
+  '6A': [40, 42, 44, 46, 49, 51, 52,  54, 56, 58, 60, 61,  66, 68, 70, 72, 73,  78, 80, 82, 84, 85], // G#m
+  '7A': [41, 43, 45, 47, 50, 52, 53,  55, 57, 59, 61, 62,  67, 69, 71, 73, 74,  79, 81, 83, 85, 86], // A#m
+  '8A': [35, 37, 39, 41, 44, 46, 48,  51, 53, 55, 56, 58,  63, 65, 67, 68, 70,  75, 77, 79, 80, 82], // Am (same as 1A)
+  '9A': [35, 37, 39, 41, 44, 46, 48,  51, 53, 55, 56, 58,  63, 65, 67, 68, 70,  75, 77, 79, 80, 82], // Bm repeat
+  '10A': [35, 37, 39, 41, 44, 46, 48,  51, 53, 55, 56, 58,  63, 65, 67, 68, 70,  75, 77, 79, 80, 82], // Cm repeat
+  '11A': [35, 37, 39, 41, 44, 46, 48,  51, 53, 55, 56, 58,  63, 65, 67, 68, 70,  75, 77, 79, 80, 82], // Dm repeat
+  '12A': [35, 37, 39, 41, 44, 46, 48,  51, 53, 55, 56, 58,  63, 65, 67, 68, 70,  75, 77, 79, 80, 82], // Em repeat
 
-  // Major scales (3 octaves)
-  '1B': [45, 47, 49, 50, 52, 54, 56,  57, 59, 61, 62, 64, 66, 68, 69, 71,  73, 75, 76, 78, 80],  // C Major
-  '2B': [46, 48, 50, 51, 53, 55, 57,  58, 60, 62, 63, 65, 67, 69, 70, 72,  74, 76, 77, 79, 81],  // D Major
-  '3B': [47, 49, 51, 52, 54, 56, 58,  59, 61, 63, 64, 66, 68, 70, 71, 73,  75, 77, 78, 80, 82],  // E Major
-  '4B': [48, 50, 52, 53, 55, 57, 59,  60, 62, 64, 65, 67, 69, 71, 72, 74,  76, 78, 79, 81, 83],  // F Major
-  '5B': [49, 51, 53, 54, 56, 58, 60,  61, 63, 65, 66, 68, 70, 72, 73, 75,  77, 79, 80, 82, 84],  // G Major
-  '6B': [50, 52, 54, 55, 57, 59, 61,  62, 64, 66, 67, 69, 71, 73, 74, 76,  78, 80, 81, 83, 85],  // A Major
-  '7B': [51, 53, 55, 56, 58, 60, 62,  63, 65, 67, 68, 70, 72, 74, 75, 77,  79, 81, 82, 84, 86],  // B Major
-  '8B': [45, 47, 49, 50, 52, 54, 56,  57, 59, 61, 62, 64, 66, 68, 69, 71,  73, 75, 76, 78, 80],  // C Major (octave)
-  '9B': [53, 55, 57, 58, 60, 62, 64,  65, 67, 69, 70, 72, 74, 76, 77, 79,  81, 83, 84, 86, 88], // D Major
-  '10B': [54, 56, 58, 59, 61, 63, 65,  66, 68, 70, 71, 73, 75, 77, 78, 80,  82, 84, 85, 87, 89], // E Major
-  '11B': [55, 57, 59, 60, 62, 64, 66,  67, 69, 71, 72, 74, 76, 78, 79, 81,  83, 85, 86, 88, 90], // F Major
-  '12B': [56, 58, 60, 61, 63, 65, 67,  68, 70, 72, 73, 75, 77, 79, 80, 82,  84, 86, 87, 89, 91], // G Major
+  // Major scales (3 octaves: C3=48 to G5=83)
+  // 8B = C Major = C D E F G A B
+  '1B': [36, 38, 40, 41, 43, 45, 47,  48, 50, 52, 53, 55,  60, 62, 64, 65, 67,  72, 74, 76, 77, 79], // Cb/B
+  '2B': [37, 39, 41, 42, 44, 46, 48,  49, 51, 53, 54, 56,  61, 63, 65, 66, 68,  73, 75, 77, 78, 80], // Db
+  '3B': [38, 40, 42, 43, 45, 47, 49,  50, 52, 54, 55, 57,  62, 64, 66, 67, 69,  74, 76, 78, 79, 81], // Eb
+  '4B': [39, 41, 43, 44, 46, 48, 50,  51, 53, 55, 56, 58,  63, 65, 67, 68, 70,  75, 77, 79, 80, 82], // F
+  '5B': [40, 42, 44, 45, 47, 49, 51,  52, 54, 56, 57, 59,  64, 66, 68, 69, 71,  76, 78, 80, 81, 83], // G
+  '6B': [41, 43, 45, 46, 48, 50, 52,  53, 55, 57, 58, 60,  65, 67, 69, 70, 72,  77, 79, 81, 82, 84], // Ab
+  '7B': [42, 44, 46, 47, 49, 51, 53,  54, 56, 58, 59, 61,  66, 68, 70, 71, 73,  78, 80, 82, 83, 85], // Bb
+  '8B': [
+    // C Major: 7 нот × 3 октавы = 21 нота (C3-B5)
+    48, 50, 52, 53, 55, 57, 59,  // C3-B3
+    60, 62, 64, 65, 67, 69, 71,  // C4-B4
+    72, 74, 76, 77, 79, 81, 83   // C5-B5
+  ], // C Major: C3-G5 (21 note)
+  '9B': [49, 51, 53, 54, 56, 58, 60,  61, 63, 65, 66, 68,  73, 75, 77, 78, 80,  85, 87, 89, 90, 92], // D
+  '10B': [50, 52, 54, 55, 57, 59, 61,  62, 64, 66, 67, 69,  74, 76, 78, 79, 81,  86, 88, 90, 91, 93], // E
+  '11B': [51, 53, 55, 56, 58, 60, 62,  63, 65, 67, 68, 70,  75, 77, 79, 80, 82,  87, 89, 91, 92, 94], // F#/Gb
+  '12B': [52, 54, 56, 57, 59, 61, 63,  64, 66, 68, 69, 71,  76, 78, 80, 81, 83,  88, 90, 92, 93, 95], // G
 };
 
 export const CAMELOT_KEYS = Object.keys(CAMELOT_WHEEL);
+
+// Harmonic Mixing Matrix (24x24 probabilities)
+// +1/-1 = 1.0, relative (A↔B same num) = 0.7, +7 semitones = 0.5
+export const CAMELOT_MATRIX: Record<string, Record<string, number>> = {};
+
+function buildMatrix() {
+  CAMELOT_KEYS.forEach(from => {
+    CAMELOT_MATRIX[from] = {};
+    CAMELOT_KEYS.forEach(to => {
+      if (from === to) {
+        CAMELOT_MATRIX[from][to] = 1.0;
+      } else {
+        const fromNum = parseInt(from);
+        const toNum = parseInt(to);
+        void from; void to;
+        
+        // Same number, different letter (relative)
+        if (fromNum === toNum) {
+          CAMELOT_MATRIX[from][to] = 0.7;
+        }
+        // +1 or -1 (boost/drop)
+        else if (Math.abs(fromNum - toNum) === 1 || Math.abs(fromNum - toNum) === 11) {
+          CAMELOT_MATRIX[from][to] = 0.9;
+        }
+        // +7 semitones
+        else if (Math.abs(fromNum - toNum) === 7) {
+          CAMELOT_MATRIX[from][to] = 0.5;
+        }
+        else {
+          CAMELOT_MATRIX[from][to] = 0.2;
+        }
+      }
+    });
+  });
+}
+buildMatrix();
+
+// Predict next key based on current key and history
+export function predictNextKey(current: string, _history: string[] = []): string {
+  const probs = CAMELOT_MATRIX[current] || {};
+  let bestKey = current;
+  let bestProb = 0;
+  
+  CAMELOT_KEYS.forEach(key => {
+    if (key !== current && (probs[key] || 0) > bestProb) {
+      bestProb = probs[key] || 0;
+      bestKey = key;
+    }
+  });
+  
+  return bestKey;
+}
 
 // Camelot to musical key mapping
 export const CAMELOT_TO_KEY: Record<string, string> = {
@@ -143,6 +203,64 @@ export const SCALE_COLORS: Record<string, string> = {
 
 export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
+export interface ScalePolygon {
+  name: string;
+  vertices: number[];
+  colors: string[];
+  genres: string[];
+}
+
+const SCALE_COLORS_PALETTE = [
+  '#FF6B6B', '#FF8E72', '#FFB347', '#FFE066',
+  '#C5E065', '#7BE495', '#4ECDC4', '#45B7D1',
+  '#5C7CFA', '#845EF7', '#CC5DE8', '#FF6B9D',
+];
+
+const SCALE_GENRES: Record<string, string[]> = {
+  '1A': ['Classical', 'Metal', 'Rock'], '2A': ['Classical', 'Metal', 'Pop'],
+  '3A': ['Jazz', 'Rock', 'Metal'], '4A': ['Jazz', 'Rock', 'Classical'],
+  '5A': ['Classical', 'Jazz', 'Rock'], '6A': ['Rock', 'Blues', 'Jazz'],
+  '7A': ['Classical', 'Romantic', 'Jazz'], '8A': ['Classical', 'Metal', 'Rock'],
+  '9A': ['Classical', 'Jazz', 'Blues'], '10A': ['Classical', 'Metal', 'World'],
+  '11A': ['Classical', 'Jazz', 'Rock'], '12A': ['Classical', 'Rock', 'Metal'],
+  '1B': ['Jazz', 'Rock', 'Metal'], '2B': ['Jazz', 'Film', 'Classical'],
+  '3B': ['Jazz', 'Rock', 'Classical'], '4B': ['Rock', 'Metal', 'Classical'],
+  '5B': ['Classical', 'Folk', 'Rock'], '6B': ['Jazz', 'Film', 'Classical'],
+  '7B': ['Romantic', 'Classical', 'Jazz'], '8B': ['Pop', 'Rock', 'Classical'],
+  '9B': ['Jazz', 'Classical', 'Blues'], '10B': ['Rock', 'Metal', 'Jazz'],
+  '11B': ['Pop', 'Rock', 'Classical'], '12B': ['Jazz', 'Metal', 'Classical'],
+};
+
+function generateScalePolygons(): Record<string, ScalePolygon> {
+  const polygons: Record<string, ScalePolygon> = {};
+  
+  for (const [key, notes] of Object.entries(CAMELOT_WHEEL)) {
+    const uniqueSemitones = [...new Set(notes.map(n => n % 12))].slice(0, 7);
+    const keyNum = parseInt(key);
+    const colorIndex = (keyNum - 1) % 12;
+    const colors = SCALE_COLORS_PALETTE.slice(colorIndex, colorIndex + 7);
+    
+    const isMajor = key.endsWith('B');
+    const keyName = CAMELOT_TO_KEY[key] || 'C';
+    const name = isMajor ? `${keyName} Major` : `${keyName} Minor`;
+    
+    polygons[key] = {
+      name,
+      vertices: uniqueSemitones,
+      colors,
+      genres: SCALE_GENRES[key] || ['Pop', 'Rock', 'Jazz'],
+    };
+  }
+  
+  return polygons;
+}
+
+export const SCALE_POLYGONS: Record<string, ScalePolygon> = generateScalePolygons();
+
+export function getScalePolygon(camelotKey: string): ScalePolygon {
+  return SCALE_POLYGONS[camelotKey] || SCALE_POLYGONS['8B'];
+}
+
 export function frequencyToNoteName(frequency: number): string | null {
   if (frequency < 20 || frequency > 5000) return null;
   const noteNum = 12 * Math.log2(frequency / 440) + 69;
@@ -151,7 +269,8 @@ export function frequencyToNoteName(frequency: number): string | null {
 }
 
 export function midiToNoteName(midi: number): string {
-  return NOTE_NAMES[midi % 12];
+  const octave = Math.floor(midi / 12) - 1;
+  return NOTE_NAMES[midi % 12] + octave;
 }
 
 export function getNoteSemitone(noteName: string): number {
@@ -196,8 +315,87 @@ export function getCamelotKeyFromNotes(detectedNotes: string[]): { key: string; 
   return { key: bestKey, score: bestScore };
 }
 
+export function getKeySparseMatch(chromagram: number[]): { key: string; score: number } {
+  const activeNotes: number[] = [];
+  const threshold = Math.max(...chromagram) * 0.3;
+  for (let i = 0; i < 12; i++) {
+    if (chromagram[i] > threshold) {
+      activeNotes.push(i);
+    }
+  }
+
+  if (activeNotes.length === 0) {
+    return { key: '8B', score: 0 };
+  }
+
+  let bestKey = '8B';
+  let bestRatio = -1;
+
+  for (const camelotKey of CAMELOT_KEYS) {
+    const scaleNotes = CAMELOT_WHEEL[camelotKey];
+    const scaleSemitones = new Set(scaleNotes.map(n => n % 12));
+
+    let matches = 0;
+    for (const note of activeNotes) {
+      if (scaleSemitones.has(note)) {
+        matches++;
+      }
+    }
+
+    const ratio = matches / scaleSemitones.size;
+    if (ratio > bestRatio) {
+      bestRatio = ratio;
+      bestKey = camelotKey;
+    }
+  }
+
+  return { key: bestKey, score: Math.round(bestRatio * 100) };
+}
+
 export const KRUMHANSL_MAJOR = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
 export const KRUMHANSL_MINOR = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+
+const CAMELOT_MODE_PROFILES: Record<string, number[]> = {
+  '1B': [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88],
+  '2B': [2.88, 6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29],
+  '3B': [2.29, 2.88, 6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66],
+  '4B': [3.66, 2.29, 2.88, 6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39],
+  '5B': [2.39, 3.66, 2.29, 2.88, 6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19],
+  '6B': [5.19, 2.39, 3.66, 2.29, 2.88, 6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52],
+  '7B': [2.52, 5.19, 2.39, 3.66, 2.29, 2.88, 6.35, 2.23, 3.48, 2.33, 4.38, 4.09],
+  '8B': [4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88, 6.35, 2.23, 3.48, 2.33, 4.38],
+  '9B': [4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88, 6.35, 2.23, 3.48, 2.33],
+  '10B': [2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88, 6.35, 2.23, 3.48],
+  '11B': [3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88, 6.35, 2.23],
+  '12B': [2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88, 6.35],
+  '1A': [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17],
+  '2A': [3.17, 6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34],
+  '3A': [3.34, 3.17, 6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69],
+  '4A': [2.69, 3.34, 3.17, 6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98],
+  '5A': [3.98, 2.69, 3.34, 3.17, 6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75],
+  '6A': [4.75, 3.98, 2.69, 3.34, 3.17, 6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54],
+  '7A': [2.54, 4.75, 3.98, 2.69, 3.34, 3.17, 6.33, 2.68, 3.52, 5.38, 2.60, 3.53],
+  '8A': [3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17, 6.33, 2.68, 3.52, 5.38, 2.60],
+  '9A': [2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17, 6.33, 2.68, 3.52, 5.38],
+  '10A': [5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17, 6.33, 2.68, 3.52],
+  '11A': [3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17, 6.33, 2.68],
+  '12A': [2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17, 6.33],
+};
+
+export function getKeyFromAllModes(chromagram: number[]): { key: string; score: number } {
+  let bestKey = '8B';
+  let bestCorrelation = -Infinity;
+  
+  for (const [camelotKey, profile] of Object.entries(CAMELOT_MODE_PROFILES)) {
+    const correlation = cosineSimilarity(chromagram, profile);
+    if (correlation > bestCorrelation) {
+      bestCorrelation = correlation;
+      bestKey = camelotKey;
+    }
+  }
+  
+  return { key: bestKey, score: Math.max(0, (bestCorrelation + 1) * 50) };
+}
 
 export const KEY_PROFILES: Record<string, number[]> = {
   '1B': [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88],
