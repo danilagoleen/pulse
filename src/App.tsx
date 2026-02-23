@@ -75,8 +75,8 @@ function App() {
         const normalizedY = notesHand.y;
         const midiNote = quantizeToScale(normalizedX, selectedScale);
         
-        const isArpeggioMode = normalizedY < 0.4;
-        const isLegatoMode = normalizedY > 0.6;
+        const isArpeggioMode = normalizedY > 0.6;
+        const isLegatoMode = normalizedY < 0.4;
         const isMidRange = !isArpeggioMode && !isLegatoMode;
         
         const newMode: 'legato' | 'arpeggio' | 'normal' = isLegatoMode ? 'legato' : isArpeggioMode ? 'arpeggio' : 'normal';
@@ -631,7 +631,7 @@ function App() {
         </div>
 
         <div className="mt-4 text-center text-zinc-500 text-xs">
-          <p>🎵 Notes: X=pitch, Y↑=ARP, Y↓=legato | 🎚️ Filter: Y=cutoff | ✋ Pinch to play</p>
+          <p>🎵 Notes: X=pitch, Y↑=legato, Y↓=ARP | 🎚️ Filter: Y=cutoff | ✋ Pinch to play</p>
         </div>
       </main>
     </div>
