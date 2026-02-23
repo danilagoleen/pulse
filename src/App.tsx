@@ -74,7 +74,11 @@ function App() {
       if (notesHand?.isPinching) {
         const normalizedX = notesHand.x;
         const normalizedY = notesHand.y;
+        
+        const scaleNotes = CAMELOT_WHEEL[selectedScale] || CAMELOT_WHEEL['8B'];
         const midiNote = quantizeToScale(normalizedX, selectedScale);
+        
+        console.log(`[Gesture] Scale: ${selectedScale}, notes: [${scaleNotes.join(',')}], X=${normalizedX.toFixed(2)}→M${midiNote}`);
         
         const isArpeggioMode = normalizedY > 0.6;
         const isLegatoMode = normalizedY < 0.4;
