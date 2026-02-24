@@ -9,11 +9,11 @@
     "source_url": "https://surge-synthesizer.github.io/downloads/",
     "github_url": "https://github.com/surge-synthesizer/releases-xt",
     "description": "Hybrid wavetable + subtractive + FM synth. Best for Berlin School, Ambient, Experimental",
-    "mac_download": "https://surge-synthesizer.github.io/downloads/",
     "mac_vst3_path": "~/Library/Audio/Plug-Ins/VST3/Surge XT.vst3",
     "mac_au_path": "/Library/Audio/Plug-Ins/Components/Surge XT.component",
-    "status": "not_installed",
-    "file_size_mb": 417
+    "status": "installed",
+    "file_size_mb": 417,
+    "installed_date": "2026-02-24"
   },
   {
     "id": "helm",
