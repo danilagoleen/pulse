@@ -36,6 +36,9 @@ export class SmartAudioEngine {
 
   private keyHistory: string[] = [];
   private readonly KEY_HISTORY_SIZE = 5;
+  private lastEmittedKey: string = '';
+  private lastEmittedAt: number = 0;
+  private readonly MIN_KEY_EMIT_INTERVAL_MS = 1200;
 
   public async start(callbacks: AudioEngineCallbacks): Promise<void> {
     if (this.isRunning) return;
@@ -69,6 +72,9 @@ export class SmartAudioEngine {
       this.onsetTimes = [];
       this.lastBPM = 120;
       this._confidence = 0;
+      this.keyHistory = [];
+      this.lastEmittedKey = '';
+      this.lastEmittedAt = 0;
       
       console.log("[SmartAudioEngine] Starting unified loop...");
       this.detectLoop();
@@ -154,11 +160,17 @@ export class SmartAudioEngine {
       
       if (this.frameCount >= this.STABLE_FRAMES && score > 15 && confirmedKey) {
         const dominantNote = this.getDominantNote();
-        
-        if (this.callbacks.onKey) {
+
+        const nowMs = performance.now();
+        const keyChanged = confirmedKey !== this.lastEmittedKey;
+        const emitIntervalPassed = nowMs - this.lastEmittedAt >= this.MIN_KEY_EMIT_INTERVAL_MS;
+
+        if (this.callbacks.onKey && keyChanged && emitIntervalPassed) {
           this.callbacks.onKey(dominantNote, confirmedKey, activeNotes, Math.round(score / 10));
+          this.lastEmittedKey = confirmedKey;
+          this.lastEmittedAt = nowMs;
+          this.frameCount = 0;
         }
-        this.frameCount = this.STABLE_FRAMES + 1;
       }
     }
 

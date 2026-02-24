@@ -6,8 +6,9 @@ import { Arpeggiator, ArpPattern } from "./audio/Arpeggiator";
 import { SmartAudioEngine } from "./audio/SmartAudioEngine";
 import { KeyDetector } from "./audio/KeyDetector";
 import { HandTracker, GestureState } from "./vision/HandTracker";
-import { quantizeToScale, CAMELOT_WHEEL, SCALE_COLORS, midiToNoteName, predictNextKey, refineToMinimal } from "./music/theory";
+import { quantizeToScale, CAMELOT_WHEEL, SCALE_COLORS, midiToNoteName, predictNextKey, refineToMinimal, CAMELOT_TO_SCALE } from "./music/theory";
 import { detectGenre } from "./music/GenreDetector";
+import { scaleLearner } from "./music/ScaleLearner";
 import { Camera, Square, MousePointer2 } from "lucide-react";
 
 function App() {
@@ -28,8 +29,8 @@ function App() {
     leftHand: null,
     rightHand: null,
   });
-  const [selectedScale, setSelectedScale] = useState('8B');
-  const [currentScaleName, setCurrentScaleName] = useState('Ionian (Major)');
+  const [selectedCamelotKey, setSelectedCamelotKey] = useState('8B');
+  const [selectedScaleName, setSelectedScaleName] = useState('Ionian (Major)');
   const [currentNote, setCurrentNote] = useState<number | null>(null);
   const [currentNoteName, setCurrentNoteName] = useState<string | null>(null);
   const [currentFilter, setCurrentFilter] = useState<number>(0.5);
@@ -96,10 +97,10 @@ function App() {
         const normalizedX = notesHand.x;
         const normalizedY = notesHand.y;
         
-        const scaleNotes = CAMELOT_WHEEL[selectedScale] || CAMELOT_WHEEL['8B'];
-        const midiNote = quantizeToScale(normalizedX, selectedScale);
+        const scaleNotes = CAMELOT_WHEEL[selectedCamelotKey] || CAMELOT_WHEEL['8B'];
+        const midiNote = quantizeToScale(normalizedX, selectedCamelotKey);
         
-        console.log(`[Gesture] Scale: ${selectedScale}, notes: [${scaleNotes.join(',')}], X=${normalizedX.toFixed(2)}→M${midiNote}`);
+        console.log(`[Gesture] Scale: ${selectedCamelotKey}, notes: [${scaleNotes.join(',')}], X=${normalizedX.toFixed(2)}→M${midiNote}`);
         
         const isArpeggioMode = normalizedY > 0.6;
         const isLegatoMode = normalizedY < 0.4;
@@ -145,12 +146,13 @@ function App() {
           setCurrentNote(midiNote);
           setCurrentNoteName(midiToNoteName(midiNote));
           
-          if (isArpeggioMode && arpRef.current && arpRef.current.isReady()) {
+          if (isArpeggioMode && arpRef.current) {
             arpRef.current.setNotes(scaleNotes);
             arpRef.current.setBaseNote(midiNote);
             arpRef.current.setPattern(arpPattern);
             arpRef.current.setBpm(currentBPM || 120);
-            arpRef.current.start();
+            arpRef.current.setOutputLevel(0.22);
+            void arpRef.current.start();
             synthRef.current?.stop();
           } else if (isLegatoMode || isMidRange) {
             arpRef.current?.stop();
@@ -166,7 +168,7 @@ function App() {
         setCurrentNoteName(null);
       }
     }
-  }, [selectedScale, isLeftHandNotes, arpPattern, currentBPM]);
+  }, [selectedCamelotKey, isLeftHandNotes, arpPattern, currentBPM]);
 
   useEffect(() => {
     isLeftHandNotesRef.current = isLeftHandNotes;
@@ -178,8 +180,13 @@ function App() {
   }, [beatQuantization]);
 
   useEffect(() => {
+    isBPMTrackingRef.current = _isBPMTracking;
+  }, [_isBPMTracking]);
+
+  useEffect(() => {
     synthRef.current = new SynthEngine();
     arpRef.current = new Arpeggiator();
+    arpRef.current.setOutputLevel(0.22);
     trackerRef.current = new HandTracker();
     trackerRef.current.setHandMode(isLeftHandNotes);
     keyDetectorRef.current = new KeyDetector();
@@ -199,8 +206,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (isSmartAudioActive && selectedScale) {
-      const scaleNotes = CAMELOT_WHEEL[selectedScale];
+    if (isSmartAudioActive && selectedCamelotKey) {
+      const scaleNotes = CAMELOT_WHEEL[selectedCamelotKey];
       if (scaleNotes && scaleNotes.length > 0) {
         const rootNote = scaleNotes[Math.floor(scaleNotes.length / 2)];
         synthRef.current?.start();
@@ -209,7 +216,7 @@ function App() {
         setTimeout(() => synthRef.current?.stop(), 200);
       }
     }
-  }, [selectedScale, isSmartAudioActive]);
+  }, [selectedCamelotKey, isSmartAudioActive]);
 
   useEffect(() => {
     if (isSimulating && synthRef.current) {
@@ -224,7 +231,7 @@ function App() {
         synthRef.current.start();
         
         // Pitch: X axis
-        const midiNote = quantizeToScale(noteX, selectedScale);
+        const midiNote = quantizeToScale(noteX, selectedCamelotKey);
         synthRef.current.setFrequencyFromMidi(midiNote);
         setCurrentNote(midiNote);
         setCurrentNoteName(midiToNoteName(midiNote));
@@ -240,7 +247,7 @@ function App() {
         rightHand: { x: isLeftHandNotes ? 0.5 : simX, y: isLeftHandNotes ? 0.5 : simY, z: 0, isPinching: simPinch },
       });
     }
-  }, [isSimulating, simY, simX, simPinch, selectedScale, isLeftHandNotes]);
+  }, [isSimulating, simY, simX, simPinch, selectedCamelotKey, isLeftHandNotes]);
 
   const startTracking = async () => {
     if (!videoRef.current || !canvasRef.current || !trackerRef.current) {
@@ -332,12 +339,15 @@ function App() {
       setIsSmartAudioActive(false);
       setIsListening(false);
       setIsBPMTracking(false);
+      isBPMTrackingRef.current = false;
       setCurrentBPM(0);
       setBeatPhase(0);
       setBpmConfidence(0);
       setDetectedKey(null);
       setDetectedNote(null);
       setDetectedNotes([]);
+      pendingKeyRef.current = null;
+      setPendingKey(null);
     } else {
       setDetectedNote(null);
       setDetectedKey(null);
@@ -353,11 +363,12 @@ function App() {
           setBeatPhase(beat);
           setBpmConfidence(confidence);
           setIsBPMTracking(true);
+          isBPMTrackingRef.current = true;
           
           if (beat < 0.1 && pendingKeyRef.current) {
             const key = pendingKeyRef.current;
             console.log("[SmartAudio] On downbeat - switching to:", key);
-            setSelectedScale(key);
+            setSelectedCamelotKey(key);
             setPendingKey(null);
             pendingKeyRef.current = null;
           }
@@ -370,39 +381,52 @@ function App() {
           setDetectionScore(score);
           setIsListening(true);
           
-          // Refine scale toward minimal (fewer notes = pentatonic, blues, etc.)
-          const semitones = allNotes.map(n => ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].indexOf(n)).filter(i => i >= 0);
-          let refinedScaleName = key;
-          if (semitones.length > 0) {
-            const refined = refineToMinimal(semitones);
-            refinedScaleName = refined.name;
-            console.log("[SmartAudio] Scale refined to:", refined.name, "(intervals:", refined.intervals, ")");
-            
-            // SCALE STABILITY: Only update if scale actually changed
-            if (refinedScaleName !== lastScaleRef.current) {
-              console.log("[SmartAudio] Scale CHANGED:", lastScaleRef.current, "→", refinedScaleName);
-              lastScaleRef.current = refinedScaleName;
-              setCurrentScaleName(refined.name);
-              
-              // Now detect genre based on stable scale + BPM
-              const currentBPM = currentBPMRef.current || 120;
-              const genreResult = detectGenre(currentBPM, refined.name);
-              setDetectedGenre(genreResult.genre);
-              setSuggestedVST(genreResult.suggestedVST);
-              console.log("[SmartAudio] Genre detected:", genreResult.genre, "→ VST:", genreResult.suggestedVST);
-              
-              // Switch to new scale
-              setSelectedScale(refinedScaleName);
-              
-              // Also queue for beat sync if BPM is tracking
-              if (isBPMTrackingRef.current) {
-                pendingKeyRef.current = refinedScaleName;
-                setPendingKey(refinedScaleName);
-              }
+          // Add notes to ScaleLearner history for pattern learning
+          for (const n of allNotes) {
+            scaleLearner.addNote(n);
+          }
+          
+          // Learn scale from accumulated note history
+          const currentBest = scaleLearner.getCurrentScale();
+          
+          console.log("[ScaleLearner] Status:", scaleLearner.getStatus());
+          
+          // Use learned scale if confidence is high enough
+          let refinedScaleName = selectedScaleName;
+          if (currentBest.scale && currentBest.confidence > 0.4) {
+            refinedScaleName = currentBest.scale.name;
+            console.log("[ScaleLearner] LEARNED scale:", refinedScaleName, "confidence:", currentBest.confidence.toFixed(2));
+          } else if (allNotes.length > 0) {
+            // Fallback to simple refine
+            const semitones = allNotes.map(n => ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].indexOf(n)).filter(i => i >= 0);
+            if (semitones.length > 0) {
+              const refined = refineToMinimal(semitones);
+              refinedScaleName = refined.name;
             }
           }
           
-          const predicted = predictNextKey(refinedScaleName);
+          // SCALE STABILITY: Only update if scale actually changed
+          if (refinedScaleName !== lastScaleRef.current) {
+            console.log("[SmartAudio] Scale CHANGED:", lastScaleRef.current, "→", refinedScaleName);
+            lastScaleRef.current = refinedScaleName;
+            setSelectedScaleName(refinedScaleName);
+            
+            // Now detect genre based on stable scale + BPM
+            const currentBPM = currentBPMRef.current || 120;
+            const genreResult = detectGenre(currentBPM, refinedScaleName);
+            setDetectedGenre(genreResult.genre);
+            setSuggestedVST(genreResult.suggestedVST);
+            console.log("[SmartAudio] Genre detected:", genreResult.genre, "→ VST:", genreResult.suggestedVST);
+          }
+          
+          if (isBPMTrackingRef.current) {
+            pendingKeyRef.current = key;
+            setPendingKey(key);
+          } else {
+            setSelectedCamelotKey(key);
+          }
+          
+          const predicted = predictNextKey(key);
           setPredictedKey(predicted);
         }
       });
@@ -410,12 +434,17 @@ function App() {
     }
   };
 
+  const handleCamelotChange = (key: string) => {
+    setSelectedCamelotKey(key);
+    setSelectedScaleName(CAMELOT_TO_SCALE[key] || selectedScaleName);
+  };
+
   return (
     <div 
       className="min-h-screen text-white transition-colors duration-300"
       style={{ 
         backgroundColor: '#000',
-        borderLeft: `4px solid ${SCALE_COLORS[selectedScale] || '#45B7D1'}`
+        borderLeft: `4px solid ${SCALE_COLORS[selectedCamelotKey] || '#45B7D1'}`
       }}
     >
       <Header />
@@ -530,9 +559,9 @@ function App() {
 
         <div className="flex items-center gap-8 mt-6">
           <UnifiedWheel
-            currentCamelot={selectedScale}
+            currentCamelot={selectedCamelotKey}
             predictedKey={predictedKey}
-            onCamelotChange={(key) => setSelectedScale(key)}
+            onCamelotChange={handleCamelotChange}
             size={300}
             bpm={isSmartAudioActive ? currentBPM : 0}
             beatPhase={beatPhase}
@@ -543,7 +572,7 @@ function App() {
           <div className="flex flex-col gap-2">
             <div className="text-xs text-zinc-400 text-center">🎵 Calibration - Click to play scale notes</div>
             <div className="flex gap-1 flex-wrap max-w-[280px] justify-center">
-              {CAMELOT_WHEEL[selectedScale]?.slice(0, 7).map((midiNote) => (
+              {CAMELOT_WHEEL[selectedCamelotKey]?.slice(0, 7).map((midiNote) => (
                 <button
                   key={midiNote}
                   onClick={() => {
@@ -553,7 +582,7 @@ function App() {
                     setTimeout(() => synthRef.current?.stop(), 500);
                   }}
                   className="px-2 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 rounded transition-colors"
-                  style={{ borderColor: SCALE_COLORS[selectedScale] }}
+                  style={{ borderColor: SCALE_COLORS[selectedCamelotKey] }}
                 >
                   {midiToNoteName(midiNote)}
                 </button>
@@ -613,8 +642,8 @@ function App() {
             )}
 
             <div className="flex items-center gap-2">
-              <span className="text-lg font-bold" style={{ color: SCALE_COLORS[selectedScale] }}>
-                {selectedScale}
+              <span className="text-lg font-bold" style={{ color: SCALE_COLORS[selectedCamelotKey] }}>
+                {selectedCamelotKey}
               </span>
               {detectedKey && (
                 <span className="text-zinc-400 text-sm">
@@ -623,9 +652,9 @@ function App() {
               )}
             </div>
             
-            {currentScaleName && (
+            {selectedScaleName && (
               <div className="text-xs text-cyan-400">
-                Scale: {currentScaleName}
+                Scale: {selectedScaleName}
               </div>
             )}
 

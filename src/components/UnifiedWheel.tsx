@@ -1,5 +1,5 @@
 import { Stage, Layer, Circle, Line, Text, Arc, Group, Ring } from 'react-konva';
-import { SCALE_COLORS, CAMELOT_KEYS, predictNextKey, getScalePolygon } from '../music/theory';
+import { SCALE_COLORS, CAMELOT_KEYS, CAMELOT_TO_KEY, predictNextKey, getScalePolygon } from '../music/theory';
 
 interface UnifiedWheelProps {
   currentCamelot: string;
@@ -31,19 +31,20 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
   const centerY = size / 2;
   const outerRadius = size * 0.46;
   const middleRadius = size * 0.36;
-  const innerRadius = size * 0.26;
+  const polygonRadius = size * 0.25;
   const segmentAngle = 360 / 12;
 
   const currentColor = SCALE_COLORS[currentCamelot] || '#45B7D1';
   const scalePolygon = getScalePolygon(currentCamelot);
   
   const predicted = predictedKey || predictNextKey(currentCamelot);
+  const currentIsMinor = currentCamelot.endsWith('A');
 
   const polygonVertices = scalePolygon.vertices.map((semitone, idx) => {
     const angle = ((semitone * 30) - 90) * (Math.PI / 180);
     return {
-      x: centerX + innerRadius * Math.cos(angle),
-      y: centerY + innerRadius * Math.sin(angle),
+      x: centerX + polygonRadius * Math.cos(angle),
+      y: centerY + polygonRadius * Math.sin(angle),
       note: NOTE_NAMES[semitone],
       color: scalePolygon.colors[idx % scalePolygon.colors.length],
       semitone: semitone,
@@ -58,8 +59,10 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
     }
   };
 
-  const isDownbeat = beatPhase < 0.15;
-  const pulseRadius = isDownbeat ? outerRadius + 15 : outerRadius;
+  const beatDistance = Math.min(beatPhase, 1 - beatPhase);
+  const pulseStrength = bpm > 0 ? Math.max(0, 1 - beatDistance / 0.18) : 0;
+  const isDownbeat = pulseStrength > 0.75;
+  const pulseRadius = outerRadius + pulseStrength * 16;
 
   return (
     <Stage width={size} height={size}>
@@ -67,13 +70,13 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
         <Circle
           x={centerX}
           y={centerY}
-          radius={pulseRadius + 10}
+          radius={pulseRadius + 10 + pulseStrength * 4}
           fill="#0a0a0a"
           stroke={isDownbeat ? '#ff4444' : '#333'}
-          strokeWidth={isDownbeat ? 4 : 2}
-          opacity={isDownbeat ? 0.8 : 0.5}
+          strokeWidth={2 + pulseStrength * 3}
+          opacity={0.45 + pulseStrength * 0.35}
           shadowColor={isDownbeat ? '#ff4444' : 'transparent'}
-          shadowBlur={isDownbeat ? 30 : 0}
+          shadowBlur={pulseStrength * 34}
         />
 
         {CAMELOT_KEYS.map((key, i) => {
@@ -118,6 +121,36 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
           opacity={0.4}
         />
 
+        {Array.from({ length: 12 }).map((_, i) => {
+          const angle = i * segmentAngle;
+          const minorKey = `${i + 1}A`;
+          const majorKey = `${i + 1}B`;
+          const modeKey = currentIsMinor ? minorKey : majorKey;
+          const modeLabel = CAMELOT_TO_KEY[modeKey] || '';
+          const pairLabel = currentIsMinor ? 'A' : 'B';
+          return (
+            <Group key={`inner-${i}`}>
+              <Text
+                x={centerX + (middleRadius - 20) * Math.cos((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 7}
+                y={centerY + (middleRadius - 20) * Math.sin((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 7}
+                text={modeLabel}
+                fontSize={12}
+                fill="#e2e2e2"
+                fontStyle="bold"
+                opacity={0.9}
+              />
+              <Text
+                x={centerX + (middleRadius - 38) * Math.cos((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 4}
+                y={centerY + (middleRadius - 38) * Math.sin((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 5}
+                text={pairLabel}
+                fontSize={9}
+                fill="#8f8f8f"
+                opacity={0.85}
+              />
+            </Group>
+          );
+        })}
+
         <Circle
           x={centerX}
           y={centerY}
@@ -133,16 +166,15 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
             <Line
               points={[...polygonPoints, polygonPoints[0], polygonPoints[1]]}
               fill={currentColor}
-              opacity={0.12}
+              opacity={0.2}
               closed
             />
             <Line
               points={[...polygonPoints, polygonPoints[0], polygonPoints[1]]}
               stroke={currentColor}
-              strokeWidth={2}
-              dash={[6, 3]}
+              strokeWidth={3}
               closed
-              opacity={0.85}
+              opacity={0.9}
             />
             
             {polygonVertices.map((v, i) => (
@@ -150,10 +182,10 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
                 <Circle
                   x={v.x}
                   y={v.y}
-                  radius={12}
+                  radius={10}
                   fill={v.color}
                   stroke="#fff"
-                  strokeWidth={2}
+                  strokeWidth={1.5}
                   shadowColor={v.color}
                   shadowBlur={12}
                   shadowOpacity={0.9}
@@ -177,10 +209,10 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
           radius={size * 0.13}
           fill={isDownbeat ? '#1a1a1a' : '#0d0d0d'}
           stroke={currentColor}
-          strokeWidth={isDownbeat ? 4 : 3}
+          strokeWidth={3 + pulseStrength * 1.8}
           shadowColor={isDownbeat ? '#ff4444' : currentColor}
-          shadowBlur={isDownbeat ? 25 : 15}
-          shadowOpacity={isDownbeat ? 1 : 0.7}
+          shadowBlur={15 + pulseStrength * 14}
+          shadowOpacity={0.7 + pulseStrength * 0.3}
         />
         
         <Text

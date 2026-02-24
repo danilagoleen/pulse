@@ -1,7 +1,7 @@
 # Pulse — ROADMAP v2.0 (Based on GROK Research)
 
 **Last Updated:** 2026-02-24  
-**Version:** 0.1.0 → 0.2.0
+**Version:** 0.1.0 → 0.2.1
 
 ---
 
@@ -20,6 +20,24 @@
 | Unified Wheel UI | ✅ | src/components/UnifiedWheel.tsx |
 | Camelot Matrix | ✅ | src/music/theory.ts |
 | Left/Right Hand Mapping | ✅ | src/App.tsx |
+
+---
+
+## 🚀 NEXT: v0.2.1 — ARP BALANCE + CAMELOT VISUAL CLARITY
+
+### Priority 0: Audio/Visual Polish (Immediate)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| ARP loudness balancing vs lead synth | ✅ In code | Lower ARP output gain + softer level |
+| BPM pulse in wheel center | ✅ In code | Pulse now scales with beat phase, not binary blink |
+| Camelot inner key readability | ✅ In code | Added central inner key labels (A/B mode context) |
+| Scale polygon visibility inside Camelot | ✅ In code | Stronger fill/stroke and vertex readability |
+
+### Priority 0.1: Follow-up (next pass)
+1. Add per-mode label ring (`A` and `B` simultaneously, not only active mode).
+2. Add BPM pulse trail (decay animation over 1 beat).
+3. Add ARP/synth A-B mixer in UI (user-controlled balance).
 
 ---
 
@@ -153,6 +171,13 @@ function detectGenre(bpm: number, scaleName: string): { genre: string, confidenc
 - Visual pulse in center of Camelot wheel
 - Triggers on downbeat (strong beat)
 - Color matches detected scale
+- Must include continuous beat-phase animation (not only on/off)
+
+### Priority 4: Camelot Inner Geometry
+
+1. Show inner Camelot key layer (central key labels) for harmonic context.
+2. Keep scale polygon in the center as the active mode geometry.
+3. Use polygon shape changes as primary visual of scale refinement.
 
 ---
 
@@ -211,6 +236,11 @@ v0.2.0:
 4. [UPDATE] SmartAudioEngine.ts - Add genre state
 5. [UPDATE] App.tsx - Show genre + VST in UI
 6. [NEW] BPM Pulse Light in UnifiedWheel
+
+v0.2.1:
+1. [UPDATE] Arpeggiator.ts - output gain balancing + safer loop lifecycle
+2. [UPDATE] UnifiedWheel.tsx - continuous BPM pulse and stronger scale polygon
+3. [UPDATE] UnifiedWheel.tsx - inner Camelot key labels for readable center
 ```
 
 ---
