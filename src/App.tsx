@@ -69,6 +69,7 @@ function App() {
   const beatPhaseRef = useRef(0);
   const isBPMTrackingRef = useRef(false);
   const currentBPMRef = useRef(120);
+  const smoothedBpmRef = useRef(120);
   const pendingKeyRef = useRef<string | null>(null);
   const playModeRef = useRef<'legato' | 'arpeggio' | 'normal'>('normal');
   const beatQuantizationRef = useRef<'off' | 'quarter' | 'eighth' | 'sixteenth'>('off');
@@ -358,8 +359,11 @@ function App() {
       await smartAudioRef.current?.start({
         onBPM: (bpm, beat, confidence) => {
           beatPhaseRef.current = beat;
-          setCurrentBPM(bpm);
-          currentBPMRef.current = bpm;
+          const target = Math.min(Math.max(bpm, 50), 190);
+          smoothedBpmRef.current = smoothedBpmRef.current + (target - smoothedBpmRef.current) * 0.2;
+          const smoothedBpm = Math.round(smoothedBpmRef.current);
+          setCurrentBPM(smoothedBpm);
+          currentBPMRef.current = smoothedBpm;
           setBeatPhase(beat);
           setBpmConfidence(confidence);
           setIsBPMTracking(true);

@@ -11,6 +11,7 @@ export class Arpeggiator {
   private notes: number[] = [];
   private pattern: ArpPattern = 'up';
   private bpm: number = 120;
+  private smoothedBpm: number = 120;
 
   async initialize() {
     if (this._isReady) return;
@@ -36,6 +37,7 @@ export class Arpeggiator {
     this.outputGain.toDestination();
     
     Tone.Transport.bpm.value = this.bpm;
+    this.smoothedBpm = this.bpm;
     this._isReady = true;
     console.log('[Arpeggiator] Initialized');
   }
@@ -52,8 +54,11 @@ export class Arpeggiator {
   }
 
   setBpm(bpm: number) {
-    this.bpm = bpm;
-    Tone.Transport.bpm.value = bpm;
+    const clamped = Math.min(Math.max(bpm, 50), 190);
+    this.bpm = clamped;
+    // Soft-follow tempo: do not jump aggressively between estimates.
+    this.smoothedBpm = this.smoothedBpm + (clamped - this.smoothedBpm) * 0.18;
+    Tone.Transport.bpm.rampTo(this.smoothedBpm, 0.25);
   }
 
   setFilterCutoff(cutoff: number) {

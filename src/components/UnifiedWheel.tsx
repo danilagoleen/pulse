@@ -1,5 +1,5 @@
 import { Stage, Layer, Circle, Line, Text, Arc, Group, Ring } from 'react-konva';
-import { SCALE_COLORS, CAMELOT_KEYS, CAMELOT_TO_KEY, predictNextKey, getScalePolygon } from '../music/theory';
+import { SCALE_COLORS, CAMELOT_TO_KEY, predictNextKey, getScalePolygon } from '../music/theory';
 
 interface UnifiedWheelProps {
   currentCamelot: string;
@@ -19,6 +19,14 @@ const ITTEN_COLORS = [
   '#5C7CFA', '#845EF7', '#CC5DE8', '#FF6B9D',
 ];
 
+function parseCamelot(key: string): { num: number; mode: 'A' | 'B' } | null {
+  const match = key.match(/^(\d{1,2})(A|B)$/);
+  if (!match) return null;
+  const num = Number.parseInt(match[1], 10);
+  if (num < 1 || num > 12) return null;
+  return { num, mode: match[2] as 'A' | 'B' };
+}
+
 export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
   currentCamelot,
   predictedKey,
@@ -30,15 +38,19 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
   const centerX = size / 2;
   const centerY = size / 2;
   const outerRadius = size * 0.46;
-  const middleRadius = size * 0.36;
+  const outerBandInner = outerRadius - 24;
+  const innerBandOuter = outerBandInner - 4;
+  const innerBandInner = innerBandOuter - 24;
+  const middleRadius = innerBandInner - 6;
   const polygonRadius = size * 0.25;
   const segmentAngle = 360 / 12;
 
   const currentColor = SCALE_COLORS[currentCamelot] || '#45B7D1';
   const scalePolygon = getScalePolygon(currentCamelot);
-  
   const predicted = predictedKey || predictNextKey(currentCamelot);
-  const currentIsMinor = currentCamelot.endsWith('A');
+
+  const currentParsed = parseCamelot(currentCamelot);
+  const currentNum = currentParsed?.num ?? 8;
 
   const polygonVertices = scalePolygon.vertices.map((semitone, idx) => {
     const angle = ((semitone * 30) - 90) * (Math.PI / 180);
@@ -47,22 +59,21 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
       y: centerY + polygonRadius * Math.sin(angle),
       note: NOTE_NAMES[semitone],
       color: scalePolygon.colors[idx % scalePolygon.colors.length],
-      semitone: semitone,
     };
   });
 
   const polygonPoints = polygonVertices.flatMap(v => [v.x, v.y]);
 
   const handleSegmentClick = (key: string) => {
-    if (onCamelotChange) {
-      onCamelotChange(key);
-    }
+    if (onCamelotChange) onCamelotChange(key);
   };
 
   const beatDistance = Math.min(beatPhase, 1 - beatPhase);
   const pulseStrength = bpm > 0 ? Math.max(0, 1 - beatDistance / 0.18) : 0;
   const isDownbeat = pulseStrength > 0.75;
   const pulseRadius = outerRadius + pulseStrength * 16;
+
+  const predictedParsed = predicted ? parseCamelot(predicted) : null;
 
   return (
     <Stage width={size} height={size}>
@@ -79,33 +90,81 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
           shadowBlur={pulseStrength * 34}
         />
 
-        {CAMELOT_KEYS.map((key, i) => {
+        {Array.from({ length: 12 }).map((_, i) => {
+          const num = i + 1;
           const angle = i * segmentAngle;
-          const isActive = key === currentCamelot;
-          const isPredicted = key === predicted;
-          const color = SCALE_COLORS[key] || ITTEN_COLORS[i];
-          
+          const majorKey = `${num}B`;
+          const minorKey = `${num}A`;
+          const majorName = CAMELOT_TO_KEY[majorKey] || '';
+          const minorName = `${CAMELOT_TO_KEY[minorKey] || ''}m`;
+          const color = SCALE_COLORS[majorKey] || ITTEN_COLORS[i];
+
+          const isMajorActive = currentCamelot === majorKey;
+          const isMinorActive = currentCamelot === minorKey;
+          const majorOpacity = isMajorActive ? 1 : currentNum === num ? 0.72 : 0.36;
+          const minorOpacity = isMinorActive ? 0.95 : currentNum === num ? 0.66 : 0.32;
+
           return (
-            <Group key={key} onClick={() => handleSegmentClick(key)} onTap={() => handleSegmentClick(key)}>
+            <Group key={`sector-${num}`}>
               <Arc
                 x={centerX}
                 y={centerY}
-                innerRadius={outerRadius - 28}
+                innerRadius={outerBandInner}
                 outerRadius={outerRadius}
-                angle={segmentAngle - 3}
+                angle={segmentAngle - 2}
                 rotation={angle - 90}
                 fill={color}
-                opacity={isActive ? 1 : isPredicted ? 0.6 : 0.35}
-                shadowColor={isActive ? color : 'transparent'}
-                shadowBlur={isActive ? 20 : isPredicted ? 10 : 0}
-                shadowOpacity={0.9}
+                opacity={majorOpacity}
+                shadowColor={isMajorActive ? color : 'transparent'}
+                shadowBlur={isMajorActive ? 14 : 0}
+                onClick={() => handleSegmentClick(majorKey)}
+                onTap={() => handleSegmentClick(majorKey)}
+              />
+              <Arc
+                x={centerX}
+                y={centerY}
+                innerRadius={innerBandInner}
+                outerRadius={innerBandOuter}
+                angle={segmentAngle - 2}
+                rotation={angle - 90}
+                fill={color}
+                opacity={minorOpacity}
+                shadowColor={isMinorActive ? color : 'transparent'}
+                shadowBlur={isMinorActive ? 12 : 0}
+                onClick={() => handleSegmentClick(minorKey)}
+                onTap={() => handleSegmentClick(minorKey)}
+              />
+
+              <Text
+                x={centerX + (outerRadius - 12) * Math.cos((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 8}
+                y={centerY + (outerRadius - 12) * Math.sin((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 6}
+                text={majorName}
+                fontSize={13}
+                fill={isMajorActive ? '#fff' : '#d6d6d6'}
+                fontStyle="bold"
               />
               <Text
-                x={centerX + (outerRadius - 18) * Math.cos((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 10}
-                y={centerY + (outerRadius - 18) * Math.sin((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 7}
-                text={key}
-                fontSize={11}
-                fill={isActive ? '#fff' : isPredicted ? '#aaa' : '#666'}
+                x={centerX + (outerRadius - 26) * Math.cos((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 8}
+                y={centerY + (outerRadius - 26) * Math.sin((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 5}
+                text={majorKey}
+                fontSize={9}
+                fill={isMajorActive ? '#fff' : '#8d8d8d'}
+                fontStyle="bold"
+              />
+              <Text
+                x={centerX + (innerBandInner + 8) * Math.cos((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 11}
+                y={centerY + (innerBandInner + 8) * Math.sin((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 6}
+                text={minorName}
+                fontSize={12}
+                fill={isMinorActive ? '#fff' : '#d0d0d0'}
+                fontStyle="bold"
+              />
+              <Text
+                x={centerX + (innerBandInner + 20) * Math.cos((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 8}
+                y={centerY + (innerBandInner + 20) * Math.sin((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 5}
+                text={minorKey}
+                fontSize={9}
+                fill={isMinorActive ? '#fff' : '#8d8d8d'}
                 fontStyle="bold"
               />
             </Group>
@@ -121,41 +180,11 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
           opacity={0.4}
         />
 
-        {Array.from({ length: 12 }).map((_, i) => {
-          const angle = i * segmentAngle;
-          const minorKey = `${i + 1}A`;
-          const majorKey = `${i + 1}B`;
-          const modeKey = currentIsMinor ? minorKey : majorKey;
-          const modeLabel = CAMELOT_TO_KEY[modeKey] || '';
-          const pairLabel = currentIsMinor ? 'A' : 'B';
-          return (
-            <Group key={`inner-${i}`}>
-              <Text
-                x={centerX + (middleRadius - 20) * Math.cos((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 7}
-                y={centerY + (middleRadius - 20) * Math.sin((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 7}
-                text={modeLabel}
-                fontSize={12}
-                fill="#e2e2e2"
-                fontStyle="bold"
-                opacity={0.9}
-              />
-              <Text
-                x={centerX + (middleRadius - 38) * Math.cos((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 4}
-                y={centerY + (middleRadius - 38) * Math.sin((angle + segmentAngle / 2 - 90) * Math.PI / 180) - 5}
-                text={pairLabel}
-                fontSize={9}
-                fill="#8f8f8f"
-                opacity={0.85}
-              />
-            </Group>
-          );
-        })}
-
         <Circle
           x={centerX}
           y={centerY}
           radius={middleRadius}
-          stroke={isPredicted(predicted) ? SCALE_COLORS[predicted] : currentColor}
+          stroke={predicted ? (SCALE_COLORS[predicted] || currentColor) : currentColor}
           strokeWidth={2}
           opacity={0.6}
           dash={[6, 4]}
@@ -176,7 +205,7 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
               closed
               opacity={0.9}
             />
-            
+
             {polygonVertices.map((v, i) => (
               <Group key={i}>
                 <Circle
@@ -214,7 +243,7 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
           shadowBlur={15 + pulseStrength * 14}
           shadowOpacity={0.7 + pulseStrength * 0.3}
         />
-        
+
         <Text
           x={centerX - 28}
           y={centerY - 22}
@@ -231,41 +260,45 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
           fill="#666"
         />
         <Text
-          x={centerX - 40}
-          y={centerY + 50}
-          text={scalePolygon.name.split(' ')[0]}
-          fontSize={10}
+          x={centerX - 34}
+          y={centerY + 24}
+          text={currentCamelot}
+          fontSize={14}
           fill={currentColor}
-          opacity={0.8}
+          fontStyle="bold"
+          opacity={0.95}
+        />
+        <Text
+          x={centerX - 54}
+          y={centerY + 42}
+          text={scalePolygon.name.split(' ')[0]}
+          fontSize={11}
+          fill={currentColor}
+          opacity={0.82}
         />
 
-        {predicted && predicted !== currentCamelot && (
-          <>
-            <Text
-              x={centerX - 35}
-              y={centerY + 32}
-              text={`→ ${predicted}`}
-              fontSize={14}
-              fontStyle="bold"
-              fill={SCALE_COLORS[predicted] || '#888'}
-              opacity={0.8}
-            />
-            <Circle
-              x={centerX + 30}
-              y={centerY + 38}
-              radius={4}
-              fill={SCALE_COLORS[predicted] || '#888'}
-              opacity={0.7}
-            />
-          </>
+        {predictedParsed && predictedParsed.num >= 1 && predictedParsed.num <= 12 && (
+          <Circle
+            x={
+              centerX +
+              (predictedParsed.mode === 'B' ? outerBandInner + 8 : innerBandInner + 8) *
+                Math.cos(((predictedParsed.num - 1) * segmentAngle + segmentAngle / 2 - 90) * Math.PI / 180)
+            }
+            y={
+              centerY +
+              (predictedParsed.mode === 'B' ? outerBandInner + 8 : innerBandInner + 8) *
+                Math.sin(((predictedParsed.num - 1) * segmentAngle + segmentAngle / 2 - 90) * Math.PI / 180)
+            }
+            radius={4}
+            fill={SCALE_COLORS[predicted] || '#aaa'}
+            shadowColor={SCALE_COLORS[predicted] || '#aaa'}
+            shadowBlur={8}
+            opacity={0.95}
+          />
         )}
       </Layer>
     </Stage>
   );
 };
-
-function isPredicted(key: string | null | undefined): boolean {
-  return !!key;
-}
 
 export default UnifiedWheel;
