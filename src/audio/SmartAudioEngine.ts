@@ -18,21 +18,21 @@ export class SmartAudioEngine {
   private chromagram: number[] = new Array(12).fill(0);
   private stableKey: string = '8B';
   private frameCount: number = 0;
-  private readonly STABLE_FRAMES = 15;
+  private readonly STABLE_FRAMES = 3;
   private readonly MIN_FREQ = 60;
   private readonly MAX_FREQ = 2000;
-  private readonly RMS_THRESHOLD = 0.005;
+  private readonly RMS_THRESHOLD = 0.002;
   private readonly CHROMA_SMOOTHING = 0.95;
   private readonly BUFFER_SECONDS = 10;
   
   private readonly MIN_BPM = 60;
   private readonly MAX_BPM = 180;
-  private readonly HISTORY_SIZE = 100;
+  private readonly HISTORY_SIZE = 50;
   private onsetTimes: number[] = [];
   public lastBPM: number = 120;
   public _confidence: number = 0;
-  private readonly ENERGY_THRESHOLD = 0.015;
-  private readonly ONSET_COOLDOWN = 150;
+  private readonly ENERGY_THRESHOLD = 0.008;
+  private readonly ONSET_COOLDOWN = 100;
 
   private keyHistory: string[] = [];
   private readonly KEY_HISTORY_SIZE = 5;
@@ -152,7 +152,7 @@ export class SmartAudioEngine {
 
       const confirmedKey = this.getMostFrequentKey();
       
-      if (this.frameCount >= this.STABLE_FRAMES && score > 25 && confirmedKey) {
+      if (this.frameCount >= this.STABLE_FRAMES && score > 15 && confirmedKey) {
         const dominantNote = this.getDominantNote();
         
         if (this.callbacks.onKey) {
