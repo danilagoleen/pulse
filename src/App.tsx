@@ -7,6 +7,7 @@ import { SmartAudioEngine } from "./audio/SmartAudioEngine";
 import { KeyDetector } from "./audio/KeyDetector";
 import { HandTracker, GestureState } from "./vision/HandTracker";
 import { quantizeToScale, CAMELOT_WHEEL, SCALE_COLORS, midiToNoteName, predictNextKey, refineToMinimal } from "./music/theory";
+import { detectGenre } from "./music/GenreDetector";
 import { Camera, Square, MousePointer2 } from "lucide-react";
 
 function App() {
@@ -39,6 +40,11 @@ function App() {
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [beatSyncEnabled] = useState(true);
   const [predictedKey, setPredictedKey] = useState<string | null>(null);
+  const [detectedGenre, setDetectedGenre] = useState<string | null>(null);
+  const [suggestedVST, setSuggestedVST] = useState<string[]>([]);
+  
+  // Scale stability - only update when scale actually changes
+  const lastScaleRef = useRef<string>('');
 
   void detectedNote; void detectionScore; void bpmConfidence; void gestureState;
   void currentNote; void currentNoteName; void currentFilter; void playMode;
@@ -61,6 +67,7 @@ function App() {
   const isLeftHandNotesRef = useRef(true);
   const beatPhaseRef = useRef(0);
   const isBPMTrackingRef = useRef(false);
+  const currentBPMRef = useRef(120);
   const pendingKeyRef = useRef<string | null>(null);
   const playModeRef = useRef<'legato' | 'arpeggio' | 'normal'>('normal');
   const beatQuantizationRef = useRef<'off' | 'quarter' | 'eighth' | 'sixteenth'>('off');
@@ -342,6 +349,7 @@ function App() {
         onBPM: (bpm, beat, confidence) => {
           beatPhaseRef.current = beat;
           setCurrentBPM(bpm);
+          currentBPMRef.current = bpm;
           setBeatPhase(beat);
           setBpmConfidence(confidence);
           setIsBPMTracking(true);
@@ -368,21 +376,34 @@ function App() {
           if (semitones.length > 0) {
             const refined = refineToMinimal(semitones);
             refinedScaleName = refined.name;
-            setCurrentScaleName(refined.name);
             console.log("[SmartAudio] Scale refined to:", refined.name, "(intervals:", refined.intervals, ")");
+            
+            // SCALE STABILITY: Only update if scale actually changed
+            if (refinedScaleName !== lastScaleRef.current) {
+              console.log("[SmartAudio] Scale CHANGED:", lastScaleRef.current, "→", refinedScaleName);
+              lastScaleRef.current = refinedScaleName;
+              setCurrentScaleName(refined.name);
+              
+              // Now detect genre based on stable scale + BPM
+              const currentBPM = currentBPMRef.current || 120;
+              const genreResult = detectGenre(currentBPM, refined.name);
+              setDetectedGenre(genreResult.genre);
+              setSuggestedVST(genreResult.suggestedVST);
+              console.log("[SmartAudio] Genre detected:", genreResult.genre, "→ VST:", genreResult.suggestedVST);
+              
+              // Switch to new scale
+              setSelectedScale(refinedScaleName);
+              
+              // Also queue for beat sync if BPM is tracking
+              if (isBPMTrackingRef.current) {
+                pendingKeyRef.current = refinedScaleName;
+                setPendingKey(refinedScaleName);
+              }
+            }
           }
           
           const predicted = predictNextKey(refinedScaleName);
           setPredictedKey(predicted);
-          
-          // Always switch to REFINED scale immediately
-          setSelectedScale(refinedScaleName);
-          
-          // Also queue for beat sync if BPM is tracking
-          if (isBPMTrackingRef.current) {
-            pendingKeyRef.current = refinedScaleName;
-            setPendingKey(refinedScaleName);
-          }
         }
       });
       setIsSmartAudioActive(true);
@@ -605,6 +626,17 @@ function App() {
             {currentScaleName && (
               <div className="text-xs text-cyan-400">
                 Scale: {currentScaleName}
+              </div>
+            )}
+
+            {detectedGenre && (
+              <div className="text-xs text-purple-400">
+                Genre: {detectedGenre}
+                {suggestedVST.length > 0 && (
+                  <span className="text-zinc-400 ml-1">
+                    → {suggestedVST[0]}
+                  </span>
+                )}
               </div>
             )}
 
