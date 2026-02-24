@@ -451,3 +451,6 @@ function cosineSimilarity(a: number[], b: number[]): number {
   if (magnitudeA === 0 || magnitudeB === 0) return 0;
   return dotProduct / (magnitudeA * magnitudeB);
 }
+
+// Re-export scales from scales_db
+export { SCALES_DB, getScaleDef, getScaleByIndex } from './scales_db';
