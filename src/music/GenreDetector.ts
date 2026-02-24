@@ -45,26 +45,26 @@ const SCALE_TO_GENRE: Record<string, Record<string, number>> = {
 };
 
 const SCALE_TO_VST: Record<string, string[]> = {
-  'Ionian (Major)': ['Sylenth1', 'Omnisphere', 'Serum'],
-  'Dorian': ['Massive', 'Serum', 'Pigments'],
-  'Phrygian': ['Omnisphere', 'Vital', 'Phase Plant'],
-  'Lydian': ['Omnisphere', 'Pigments', 'Falcon'],
-  'Mixolydian': ['Serum', 'Massive', 'Sylenth1'],
-  'Aeolian (Natural Minor)': ['Omnisphere', 'Serum', 'Vital'],
-  'Locrian': ['Phase Plant', 'Pigments', 'Vital'],
-  'Major Pentatonic': ['Sylenth1', 'Omnisphere', 'Serum'],
-  'Minor Pentatonic': ['Massive', 'Serum', 'Vital'],
-  'Minor Blues': ['Serum', 'Omnisphere', 'Pigments'],
-  'Major Blues': ['Massive', 'Sylenth1', 'Falcon'],
-  'Harmonic Minor': ['Omnisphere', 'Phase Plant', 'Vital'],
-  'Melodic Minor': ['Pigments', 'Serum', 'Falcon'],
-  'Hungarian Minor': ['Omnisphere', 'Vital', 'Phase Plant'],
-  'Whole Tone': ['Omnisphere', 'Pigments', 'Falcon'],
-  'Diminished': ['Serum', 'Massive', 'Vital'],
-  'Chromatic': ['Omnisphere', 'Vital', 'Pigments'],
-  'Spanish': ['Serum', 'Massive', 'Falcon'],
-  'Arabic': ['Vital', 'Phase Plant', 'Omnisphere'],
-  'Egyptian': ['Omnisphere', 'Pigments', 'Vital'],
+  'Ionian (Major)': ['Surge XT', 'Helm', 'Dexed'],
+  'Dorian': ['Surge XT', 'Dexed', 'Helm'],
+  'Phrygian': ['Yoshimi', 'Surge XT', 'Cardinal'],
+  'Lydian': ['Surge XT', 'Dexed', 'Cardinal'],
+  'Mixolydian': ['Helm', 'Surge XT', 'Dexed'],
+  'Aeolian (Natural Minor)': ['Surge XT', 'Helm', 'Yoshimi'],
+  'Locrian': ['Surge XT', 'Cardinal', 'Yoshimi'],
+  'Major Pentatonic': ['Helm', 'Surge XT', 'Dexed'],
+  'Minor Pentatonic': ['Helm', 'Surge XT', 'Dexed'],
+  'Minor Blues': ['Helm', 'Surge XT', 'Dexed'],
+  'Major Blues': ['Helm', 'Dexed', 'Surge XT'],
+  'Harmonic Minor': ['Surge XT', 'Yoshimi', 'Cardinal'],
+  'Melodic Minor': ['Surge XT', 'Dexed', 'Yoshimi'],
+  'Hungarian Minor': ['Yoshimi', 'Surge XT', 'Cardinal'],
+  'Whole Tone': ['Surge XT', 'Cardinal', 'Yoshimi'],
+  'Diminished': ['Cardinal', 'Surge XT', 'Dexed'],
+  'Chromatic': ['Cardinal', 'Surge XT', 'Yoshimi'],
+  'Spanish': ['Yoshimi', 'Surge XT', 'Helm'],
+  'Arabic': ['Yoshimi', 'Surge XT', 'Cardinal'],
+  'Egyptian': ['Yoshimi', 'Surge XT', 'Dexed'],
 };
 
 function getBpmGenreScore(bpm: number): { genre: string; score: number } {
@@ -120,7 +120,7 @@ export function detectGenre(bpm: number, scaleName: string): GenreResult {
     }
   }
   
-  const suggestedVST = SCALE_TO_VST[scaleName] || ['Serum', 'Massive', 'Omnisphere'];
+  const suggestedVST = SCALE_TO_VST[scaleName] || ['Surge XT', 'Helm', 'Dexed'];
   
   return {
     genre: bestGenre,
@@ -139,5 +139,5 @@ export function getGenreFromScale(scaleName: string): string[] {
 }
 
 export function getVSTForScale(scaleName: string): string[] {
-  return SCALE_TO_VST[scaleName] || ['Serum', 'Massive', 'Omnisphere'];
+  return SCALE_TO_VST[scaleName] || ['Surge XT', 'Helm', 'Dexed'];
 }

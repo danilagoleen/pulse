@@ -17,10 +17,33 @@ interface ScaleHypothesis {
   confidence: number;
 }
 
+function getGenericPenalty(scaleName: string, uniqueCount: number): number {
+  const n = scaleName.toLowerCase();
+  if (n.includes('chromatic')) {
+    return uniqueCount >= 10 ? -0.08 : -0.32;
+  }
+  if (n.includes('ionian') || n.includes('major')) return -0.09;
+  if (n.includes('aeolian') || n.includes('natural minor')) return -0.05;
+  return 0;
+}
+
+function getNicheBonus(scale: ScaleDef): number {
+  const n = scale.name.toLowerCase();
+  const exoticKeywords = [
+    'raga', 'arabic', 'egyptian', 'gypsy', 'japanese', 'pelog', 'ryuku', 'chinese', 'spanish', 'hawaiian'
+  ];
+  const hasExoticName = exoticKeywords.some((k) => n.includes(k));
+  const uncommonSizeBonus = scale.intervals.length !== 7 ? 0.02 : 0;
+  const explicitNicheBonus = hasExoticName ? 0.06 : 0;
+  const pentatonicBonus = n.includes('pentatonic') ? 0.03 : 0;
+  const wholeToneBonus = n.includes('whole tone') ? 0.02 : 0;
+  return uncommonSizeBonus + explicitNicheBonus + pentatonicBonus + wholeToneBonus;
+}
+
 export class ScaleLearner {
   private noteHistory: NoteEntry[] = [];
-  private readonly MAX_HISTORY = 50; // Keep last 50 notes
-  private readonly WINDOW_MS = 10000; // 10 second window
+  private readonly MAX_HISTORY = 140; // Keep longer phrase context
+  private readonly WINDOW_MS = 20000; // 20 second phrase window
   private currentHypothesis: ScaleHypothesis | null = null;
   
   addNote(noteName: string) {
@@ -68,12 +91,15 @@ export class ScaleLearner {
   
   // Match intervals to scale intervals
   matchIntervals(scaleIntervals: number[]): number {
+    const uniqueNotes = this.getUniqueSemitones();
+    const bestRoot = this.findBestRoot(uniqueNotes, scaleIntervals);
+    const shifted = scaleIntervals.map((i) => (i + bestRoot) % 12);
     const histogram = this.getIntervalHistogram();
     let matches = 0;
     let total = 0;
     
     for (const [interval, count] of histogram) {
-      if (scaleIntervals.includes(interval)) {
+      if (shifted.includes(interval)) {
         matches += count;
       }
       total += count;
@@ -94,20 +120,27 @@ export class ScaleLearner {
     
     // Test each scale
     for (const scale of SCALES_DB) {
+      const bestRoot = this.findBestRoot(uniqueNotes, scale.intervals);
+      const shiftedIntervals = scale.intervals.map((interval) => (interval + bestRoot) % 12);
+
       // Direct note matching
       const noteMatches = uniqueNotes.filter(n => 
-        scale.intervals.includes(n)
+        shiftedIntervals.includes(n)
       ).length;
       const noteScore = noteMatches / uniqueNotes.length;
+      const scaleCoverage = noteMatches / Math.max(shiftedIntervals.length, 1);
       
       // Interval matching (how well intervals match)
       const intervalScore = this.matchIntervals(scale.intervals);
       
       // Prefer fewer notes (pentatonic > major > chromatic)
       const sizePenalty = scale.intervals.length / 12;
+      const genericPenalty = getGenericPenalty(scale.name, uniqueNotes.length);
+      const nicheBonus = getNicheBonus(scale);
       
       // Combined score: note match + interval match - size penalty
-      const confidence = (noteScore * 0.5 + intervalScore * 0.5) * (1 - sizePenalty * 0.2);
+      const baseConfidence = (noteScore * 0.48 + intervalScore * 0.27 + scaleCoverage * 0.25) * (1 - sizePenalty * 0.2);
+      const confidence = Math.min(1, Math.max(0, baseConfidence + genericPenalty + nicheBonus));
       
       hypotheses.push({
         scale,
@@ -122,6 +155,25 @@ export class ScaleLearner {
     
     this.currentHypothesis = hypotheses[0] || null;
     return this.currentHypothesis;
+  }
+
+  private findBestRoot(uniqueNotes: number[], scaleIntervals: number[]): number {
+    let bestRoot = 0;
+    let bestMatches = -1;
+
+    for (let root = 0; root < 12; root++) {
+      const shifted = new Set(scaleIntervals.map((interval) => (interval + root) % 12));
+      let matches = 0;
+      for (const note of uniqueNotes) {
+        if (shifted.has(note % 12)) matches++;
+      }
+      if (matches > bestMatches) {
+        bestMatches = matches;
+        bestRoot = root;
+      }
+    }
+
+    return bestRoot;
   }
   
   // Get current best scale with confidence
@@ -173,10 +225,18 @@ function refineToMinimalSimple(semitones: number[]): ScaleDef {
   const scores: { scale: ScaleDef; score: number }[] = [];
   
   for (const scale of SCALES_DB) {
-    const matches = semitones.filter(n => scale.intervals.includes(n)).length;
+    let bestMatches = 0;
+    for (let root = 0; root < 12; root++) {
+      const shifted = scale.intervals.map((interval) => (interval + root) % 12);
+      const matches = semitones.filter((n) => shifted.includes(n % 12)).length;
+      bestMatches = Math.max(bestMatches, matches);
+    }
+    const matches = bestMatches;
     const rrf = matches / Math.max(semitones.length, 1);
     const sizeBonus = (12 - scale.intervals.length) * 0.5;
-    scores.push({ scale, score: rrf * 10 + sizeBonus });
+    const genericPenalty = getGenericPenalty(scale.name, semitones.length) * 10;
+    const nicheBonus = getNicheBonus(scale) * 10;
+    scores.push({ scale, score: rrf * 10 + sizeBonus + nicheBonus + genericPenalty });
   }
   
   scores.sort((a, b) => b.score - a.score);

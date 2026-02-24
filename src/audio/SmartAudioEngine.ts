@@ -32,7 +32,8 @@ export class SmartAudioEngine {
   public lastBPM: number = 120;
   public _confidence: number = 0;
   private readonly ENERGY_THRESHOLD = 0.008;
-  private readonly ONSET_COOLDOWN = 100;
+  private readonly ONSET_COOLDOWN = 180;
+  private previousEnergy: number = 0;
 
   private keyHistory: string[] = [];
   private readonly KEY_HISTORY_SIZE = 5;
@@ -72,6 +73,7 @@ export class SmartAudioEngine {
       this.onsetTimes = [];
       this.lastBPM = 120;
       this._confidence = 0;
+      this.previousEnergy = 0;
       this.keyHistory = [];
       this.lastEmittedKey = '';
       this.lastEmittedAt = 0;
@@ -114,7 +116,8 @@ export class SmartAudioEngine {
     const energy = this.calculateEnergy(timeData);
     const now = performance.now();
     
-    if (energy > this.ENERGY_THRESHOLD) {
+    const hasRisingEdge = energy > this.previousEnergy * 1.12;
+    if (energy > this.ENERGY_THRESHOLD && hasRisingEdge) {
       const timeSinceLastOnset = now - (this.onsetTimes[this.onsetTimes.length - 1] || 0);
       
       if (timeSinceLastOnset > this.ONSET_COOLDOWN) {
@@ -137,6 +140,7 @@ export class SmartAudioEngine {
         }
       }
     }
+    this.previousEnergy = energy;
     
     if (rms > this.RMS_THRESHOLD) {
       this.updateChromagram();
@@ -281,16 +285,36 @@ export class SmartAudioEngine {
       intervals.push(this.onsetTimes[i] - this.onsetTimes[i - 1]);
     }
 
-    const medianInterval = this.median(intervals);
-    let bpm = 60000 / medianInterval;
+    const histogram = new Map<number, number>();
+    for (const interval of intervals) {
+      if (interval < 120 || interval > 2000) continue;
+      for (const ratio of [0.5, 1, 2]) {
+        const normalizedInterval = interval * ratio;
+        let candidate = 60000 / normalizedInterval;
+        while (candidate < this.MIN_BPM) candidate *= 2;
+        while (candidate > this.MAX_BPM) candidate /= 2;
+        const bin = Math.round(candidate);
+        histogram.set(bin, (histogram.get(bin) || 0) + 1);
+      }
+    }
 
-    while (bpm < this.MIN_BPM) bpm *= 2;
-    while (bpm > this.MAX_BPM) bpm /= 2;
+    if (histogram.size === 0) {
+      return { bpm: this.lastBPM || 120, confidence: 0 };
+    }
 
-    const avgDeviation = intervals.reduce((sum, i) => sum + Math.abs(i - medianInterval), 0) / intervals.length;
-    const confidence = Math.max(0, 1 - (avgDeviation / medianInterval));
+    let bestBpm = this.lastBPM || 120;
+    let bestVotes = -1;
+    for (const [bpmBin, votes] of histogram.entries()) {
+      if (votes > bestVotes) {
+        bestVotes = votes;
+        bestBpm = bpmBin;
+      }
+    }
 
-    return { bpm: Math.round(bpm), confidence };
+    const totalVotes = Array.from(histogram.values()).reduce((sum, v) => sum + v, 0);
+    const confidence = Math.min(1, Math.max(0, bestVotes / Math.max(totalVotes, 1)));
+
+    return { bpm: Math.round(bestBpm), confidence };
   }
 
   private getBeatPhase(currentTime: number, bpm: number): number {
@@ -301,14 +325,6 @@ export class SmartAudioEngine {
     const timeSinceLastOnset = currentTime - lastOnset;
     
     return (timeSinceLastOnset % msPerBeat) / msPerBeat;
-  }
-
-  private median(values: number[]): number {
-    const sorted = [...values].sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 !== 0 
-      ? sorted[mid] 
-      : (sorted[mid - 1] + sorted[mid]) / 2;
   }
 
   private getMostFrequentKey(): string | null {

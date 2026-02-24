@@ -1,8 +1,10 @@
 import { Stage, Layer, Circle, Line, Text, Arc, Group, Ring } from 'react-konva';
 import { SCALE_COLORS, CAMELOT_TO_KEY, predictNextKey, getScalePolygon } from '../music/theory';
+import { getScaleDef } from '../music/scales_db';
 
 interface UnifiedWheelProps {
   currentCamelot: string;
+  selectedScaleName?: string;
   predictedKey?: string | null;
   onCamelotChange?: (key: string) => void;
   size?: number;
@@ -29,6 +31,7 @@ function parseCamelot(key: string): { num: number; mode: 'A' | 'B' } | null {
 
 export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
   currentCamelot,
+  selectedScaleName,
   predictedKey,
   onCamelotChange,
   size = 320,
@@ -46,7 +49,17 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
   const segmentAngle = 360 / 12;
 
   const currentColor = SCALE_COLORS[currentCamelot] || '#45B7D1';
-  const scalePolygon = getScalePolygon(currentCamelot);
+  const keyName = CAMELOT_TO_KEY[currentCamelot] || 'C';
+  const rootSemitone = Math.max(0, NOTE_NAMES.indexOf(keyName));
+  const selectedScaleDef = selectedScaleName ? getScaleDef(selectedScaleName) : null;
+  const scalePolygon = selectedScaleDef
+    ? {
+        name: selectedScaleDef.name,
+        vertices: selectedScaleDef.vertices.map((v) => (v + rootSemitone) % 12),
+        colors: selectedScaleDef.colors,
+        genres: selectedScaleDef.genres,
+      }
+    : getScalePolygon(currentCamelot);
   const predicted = predictedKey || predictNextKey(currentCamelot);
 
   const currentParsed = parseCamelot(currentCamelot);
@@ -101,8 +114,8 @@ export const UnifiedWheel: React.FC<UnifiedWheelProps> = ({
 
           const isMajorActive = currentCamelot === majorKey;
           const isMinorActive = currentCamelot === minorKey;
-          const majorOpacity = isMajorActive ? 1 : currentNum === num ? 0.72 : 0.36;
-          const minorOpacity = isMinorActive ? 0.95 : currentNum === num ? 0.66 : 0.32;
+          const majorOpacity = isMajorActive ? 1 : currentNum === num ? 0.46 : 0.32;
+          const minorOpacity = isMinorActive ? 0.95 : currentNum === num ? 0.42 : 0.28;
 
           return (
             <Group key={`sector-${num}`}>

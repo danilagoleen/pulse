@@ -261,12 +261,16 @@ export const CAMELOT_TO_SCALE: Record<string, string> = {
 
 // RRF (Relative Ratio Feature) - filter notes by scale intervals
 export function matchNotesToScale(detectedSemitones: number[], scaleIntervals: number[]): number {
-  const scaleSet = new Set(scaleIntervals);
-  let matches = 0;
-  for (const note of detectedSemitones) {
-    if (scaleSet.has(note % 12)) matches++;
+  let best = 0;
+  for (let root = 0; root < 12; root++) {
+    const scaleSet = new Set(scaleIntervals.map((interval) => (interval + root) % 12));
+    let matches = 0;
+    for (const note of detectedSemitones) {
+      if (scaleSet.has(note % 12)) matches++;
+    }
+    best = Math.max(best, matches / Math.max(detectedSemitones.length, 1));
   }
-  return matches / Math.max(detectedSemitones.length, 1);
+  return best;
 }
 
 // Refine scale toward fewer notes (pentatonic preferred)
