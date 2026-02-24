@@ -6,7 +6,7 @@ import { Arpeggiator, ArpPattern } from "./audio/Arpeggiator";
 import { SmartAudioEngine } from "./audio/SmartAudioEngine";
 import { KeyDetector } from "./audio/KeyDetector";
 import { HandTracker, GestureState } from "./vision/HandTracker";
-import { quantizeToScale, CAMELOT_WHEEL, SCALE_COLORS, midiToNoteName, predictNextKey } from "./music/theory";
+import { quantizeToScale, CAMELOT_WHEEL, SCALE_COLORS, midiToNoteName, predictNextKey, refineToMinimal, SCALES_DB } from "./music/theory";
 import { Camera, Square, MousePointer2 } from "lucide-react";
 
 function App() {
@@ -28,6 +28,7 @@ function App() {
     rightHand: null,
   });
   const [selectedScale, setSelectedScale] = useState('8B');
+  const [currentScaleName, setCurrentScaleName] = useState('Ionian (Major)');
   const [currentNote, setCurrentNote] = useState<number | null>(null);
   const [currentNoteName, setCurrentNoteName] = useState<string | null>(null);
   const [currentFilter, setCurrentFilter] = useState<number>(0.5);
@@ -361,6 +362,14 @@ function App() {
           setDetectionScore(score);
           setIsListening(true);
           
+          // Refine scale toward minimal (fewer notes = pentatonic, blues, etc.)
+          const semitones = allNotes.map(n => ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].indexOf(n)).filter(i => i >= 0);
+          if (semitones.length > 0) {
+            const refined = refineToMinimal(semitones);
+            setCurrentScaleName(refined.name);
+            console.log("[SmartAudio] Scale refined to:", refined.name, "(intervals:", refined.intervals, ")");
+          }
+          
           const predicted = predictNextKey(key);
           setPredictedKey(predicted);
           
@@ -590,6 +599,12 @@ function App() {
                 </span>
               )}
             </div>
+            
+            {currentScaleName && (
+              <div className="text-xs text-cyan-400">
+                Scale: {currentScaleName}
+              </div>
+            )}
 
             <div className="text-xs text-zinc-400 max-w-[200px]">
               {detectedNotes.length > 0 

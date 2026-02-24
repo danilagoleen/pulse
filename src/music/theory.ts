@@ -453,4 +453,4 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 // Re-export scales from scales_db
-export { SCALES_DB, getScaleDef, getScaleByIndex } from './scales_db';
+export { SCALES_DB, getScaleDef, getScaleByIndex, refineToMinimal, CAMELOT_TO_SCALE, matchNotesToScale } from './scales_db';

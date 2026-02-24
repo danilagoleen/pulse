@@ -247,3 +247,39 @@ export function getScaleDef(name: string): ScaleDef {
 export function getScaleByIndex(index: number): ScaleDef {
   return SCALES_DB[index] || SCALES_DB[0];
 }
+
+// Camelot to Scale mapping (basic)
+export const CAMELOT_TO_SCALE: Record<string, string> = {
+  '8B': 'Ionian (Major)', '9B': 'Ionian (Major)', '10B': 'Ionian (Major)',
+  '5A': 'Dorian', '6A': 'Dorian', '7A': 'Dorian',
+  '4A': 'Phrygian', '5A': 'Phrygian', '6A': 'Phrygian',
+  '3B': 'Lydian', '4B': 'Lydian', '5B': 'Lydian',
+  '2B': 'Mixolydian', '3B': 'Mixolydian', '4B': 'Mixolydian',
+  '8A': 'Aeolian (Natural Minor)', '9A': 'Aeolian', '10A': 'Aeolian',
+  '1A': 'Locrian', '2A': 'Locrian', '3A': 'Locrian',
+};
+
+// RRF (Relative Ratio Feature) - filter notes by scale intervals
+export function matchNotesToScale(detectedSemitones: number[], scaleIntervals: number[]): number {
+  const scaleSet = new Set(scaleIntervals);
+  let matches = 0;
+  for (const note of detectedSemitones) {
+    if (scaleSet.has(note % 12)) matches++;
+  }
+  return matches / Math.max(detectedSemitones.length, 1);
+}
+
+// Refine scale toward fewer notes (pentatonic preferred)
+export function refineToMinimal(detectedIntervals: number[]): ScaleDef {
+  const scores: { scale: ScaleDef; score: number }[] = [];
+  
+  for (const scale of SCALES_DB) {
+    const rrf = matchNotesToScale(detectedIntervals, scale.intervals);
+    const sizeBonus = 12 - scale.intervals.length; // fewer notes = higher bonus
+    const totalScore = rrf * 10 + sizeBonus * 0.5;
+    scores.push({ scale, score: totalScore });
+  }
+  
+  scores.sort((a, b) => b.score - a.score);
+  return scores[0]?.scale || SCALES_DB[1];
+}
