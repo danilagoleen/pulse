@@ -251,12 +251,12 @@ export function getScaleByIndex(index: number): ScaleDef {
 // Camelot to Scale mapping (basic)
 export const CAMELOT_TO_SCALE: Record<string, string> = {
   '8B': 'Ionian (Major)', '9B': 'Ionian (Major)', '10B': 'Ionian (Major)',
-  '5A': 'Dorian', '6A': 'Dorian', '7A': 'Dorian',
-  '4A': 'Phrygian', '5A': 'Phrygian', '6A': 'Phrygian',
-  '3B': 'Lydian', '4B': 'Lydian', '5B': 'Lydian',
-  '2B': 'Mixolydian', '3B': 'Mixolydian', '4B': 'Mixolydian',
+  '1B': 'Ionian', '2B': 'Mixolydian', '3B': 'Mixolydian',
+  '4B': 'Lydian', '5B': 'Lydian', '6B': 'Ionian',
+  '7B': 'Mixolydian',
   '8A': 'Aeolian (Natural Minor)', '9A': 'Aeolian', '10A': 'Aeolian',
-  '1A': 'Locrian', '2A': 'Locrian', '3A': 'Locrian',
+  '1A': 'Locrian', '2A': 'Locrian', '3A': 'Phrygian',
+  '4A': 'Phrygian', '5A': 'Dorian', '6A': 'Dorian', '7A': 'Dorian',
 };
 
 // RRF (Relative Ratio Feature) - filter notes by scale intervals
@@ -271,14 +271,25 @@ export function matchNotesToScale(detectedSemitones: number[], scaleIntervals: n
 
 // Refine scale toward fewer notes (pentatonic preferred)
 export function refineToMinimal(detectedIntervals: number[]): ScaleDef {
+  if (!detectedIntervals || detectedIntervals.length === 0) {
+    return SCALES_DB[1]; // Default to Ionian
+  }
+  
   const scores: { scale: ScaleDef; score: number }[] = [];
   
   for (const scale of SCALES_DB) {
-    const rrf = matchNotesToScale(detectedIntervals, scale.intervals);
-    const sizeBonus = 12 - scale.intervals.length; // fewer notes = higher bonus
-    const totalScore = rrf * 10 + sizeBonus * 0.5;
-    scores.push({ scale, score: totalScore });
+    try {
+      const rrf = matchNotesToScale(detectedIntervals, scale.intervals);
+      const sizeBonus = 12 - scale.intervals.length; // fewer notes = higher bonus
+      const totalScore = rrf * 10 + sizeBonus * 0.5;
+      scores.push({ scale, score: totalScore });
+    } catch (e) {
+      // Skip problematic scales
+      continue;
+    }
   }
+  
+  if (scores.length === 0) return SCALES_DB[1];
   
   scores.sort((a, b) => b.score - a.score);
   return scores[0]?.scale || SCALES_DB[1];

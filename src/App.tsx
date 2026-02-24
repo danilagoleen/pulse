@@ -6,7 +6,7 @@ import { Arpeggiator, ArpPattern } from "./audio/Arpeggiator";
 import { SmartAudioEngine } from "./audio/SmartAudioEngine";
 import { KeyDetector } from "./audio/KeyDetector";
 import { HandTracker, GestureState } from "./vision/HandTracker";
-import { quantizeToScale, CAMELOT_WHEEL, SCALE_COLORS, midiToNoteName, predictNextKey, refineToMinimal, SCALES_DB } from "./music/theory";
+import { quantizeToScale, CAMELOT_WHEEL, SCALE_COLORS, midiToNoteName, predictNextKey, refineToMinimal } from "./music/theory";
 import { Camera, Square, MousePointer2 } from "lucide-react";
 
 function App() {
@@ -364,22 +364,24 @@ function App() {
           
           // Refine scale toward minimal (fewer notes = pentatonic, blues, etc.)
           const semitones = allNotes.map(n => ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].indexOf(n)).filter(i => i >= 0);
+          let refinedScaleName = key;
           if (semitones.length > 0) {
             const refined = refineToMinimal(semitones);
+            refinedScaleName = refined.name;
             setCurrentScaleName(refined.name);
             console.log("[SmartAudio] Scale refined to:", refined.name, "(intervals:", refined.intervals, ")");
           }
           
-          const predicted = predictNextKey(key);
+          const predicted = predictNextKey(refinedScaleName);
           setPredictedKey(predicted);
           
-          // Always switch scale immediately for now
-          setSelectedScale(key);
+          // Always switch to REFINED scale immediately
+          setSelectedScale(refinedScaleName);
           
           // Also queue for beat sync if BPM is tracking
           if (isBPMTrackingRef.current) {
-            pendingKeyRef.current = key;
-            setPendingKey(key);
+            pendingKeyRef.current = refinedScaleName;
+            setPendingKey(refinedScaleName);
           }
         }
       });

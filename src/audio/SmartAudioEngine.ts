@@ -211,12 +211,23 @@ export class SmartAudioEngine {
 
   private getActiveNotes(): string[] {
     const notes: string[] = [];
-    const threshold = Math.max(...this.chromagram) * 0.3;
+    const threshold = Math.max(...this.chromagram) * 0.5;
+    const maxNotes = 5;
     
     for (let i = 0; i < 12; i++) {
       if (this.chromagram[i] > threshold) {
         notes.push(NOTE_NAMES[i]);
       }
+    }
+    
+    // Limit to top N notes by amplitude
+    if (notes.length > maxNotes) {
+      const noteAmplitudes = notes.map(n => ({
+        note: n,
+        amp: this.chromagram[NOTE_NAMES.indexOf(n)]
+      }));
+      noteAmplitudes.sort((a, b) => b.amp - a.amp);
+      return noteAmplitudes.slice(0, maxNotes).map(n => n.note);
     }
     
     return notes;
