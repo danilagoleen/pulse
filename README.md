@@ -154,6 +154,34 @@ npm run tauri build
 
 ---
 
+## External Dependencies
+
+### Required
+- **Node.js 18+** — runtime
+- **npm** — package manager
+- **Rust** — for Tauri backend
+
+### npm Packages
+```bash
+npm install
+```
+
+### Optional
+- **MediaPipe** — for hand tracking (`@mediapipe/hands`, `@mediapipe/camera_utils`)
+- **Tauri CLI** — for building (`npm install -D @tauri-apps/cli`)
+
+### System Requirements
+- macOS 11+ (tested on Intel and Apple Silicon)
+- Webcam for hand tracking
+
+### Quick Start
+```bash
+npm install
+npm run tauri dev
+```
+
+---
+
 <p align="center">
   <sub>Built with ❤️ by VETKA + BigPicle + Grok + Kimi + Minimax</sub>
 </p>
